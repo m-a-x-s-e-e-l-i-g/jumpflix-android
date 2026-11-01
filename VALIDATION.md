@@ -350,3 +350,20 @@ screenshots remain in ignored local build/artifact directories.
   and TV layouts, including TV focus on the individual review. Screenshots remain
   in ignored `artifacts/`. Emulator display settings were restored. Physical phone
   installation/testing remains deferred at the user's request.
+
+## Alpha 14 physical phone check
+
+- On 2026-11-01 the reconnected Nothing A063 received versionCode 14 / alpha14
+  using an in-place ADB update. The existing signed-in account/XPOP header remained
+  available. No app data was cleared and no instrumentation APK ran on the phone.
+- The published review for Op zen Hollands loaded on the physical phone, showing
+  its Anonymous author, date, and complete text. No review/rating submissions were
+  performed during this check.
+- Its official YouTube embed played visible video, with the native clock advancing
+  to 00:28 of 50:00. Only the JUMPFLIX transport bar was visible. Native mute worked
+  (Sound/Unmute state), and native pause returned the control to Play. Audio was
+  unmuted again while paused, then playback was closed back to the title page.
+- Physical evidence remains in ignored `artifacts/phone-alpha14-*` files. A cold
+  title deep link was used: warm title links are not routed by the current
+  MainActivity.onNewIntent implementation and remain a separate navigation issue.
+  This check does not establish live YouTube behavior on Android TV or all devices.
