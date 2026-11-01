@@ -22,7 +22,7 @@ function document(kind, sdk) {
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-test('YouTube controls use supported rates, clamp seeks, and reflect player state', () => {
+test('YouTube delegates its controls to JUMPFLIX while SDK commands still drive playback', () => {
   let options;
   const video = { position: 20, duration: 60, state: 1, muted: false, rate: 1,
     getCurrentTime() { return this.position; }, getDuration() { return this.duration; },
@@ -34,8 +34,12 @@ test('YouTube controls use supported rates, clamp seeks, and reflect player stat
   };
   const page = document('youtube', { YT: { Player: function (_, config) { options = config; return video; } } });
   page.onYouTubeIframeAPIReady(); options.events.onReady();
+  assert.equal(options.playerVars.controls, 0, 'The embedded player must not add a second control bar');
+  assert.equal(options.playerVars.fs, 0, 'Fullscreen belongs to the native player');
+  assert.equal(options.playerVars.origin, 'https://www.jumpflix.tv');
   const command = (name, value) => page.window.jumpflixCommand({ name, value });
   command('toggle'); assert.equal(video.state, 2); assert.equal(page.window.jumpflixState.paused, true);
+  command('toggle'); assert.equal(video.state, 1); assert.equal(page.window.jumpflixState.paused, false);
   command('relative', -100); assert.equal(video.position, 0);
   command('seek', 100); assert.equal(video.position, 60);
   command('rate', 1.5); assert.equal(video.rate, 1);

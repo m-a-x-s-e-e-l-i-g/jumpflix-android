@@ -307,3 +307,20 @@ screenshots remain in ignored local build/artifact directories.
 - Build and lint pass, along with all 45 existing JVM tests and seven targeted
   browsing/profile emulator checks. Production UI contains no Open on JUMPFLIX
   actions; no new tests were added for the button removal.
+
+## Alpha 13 remove duplicate YouTube controls
+
+- YouTube IFrame API embeds now set the documented `controls=0` and `fs=0`
+  player options. JUMPFLIX provides the playback controls and phone fullscreen
+  action, avoiding a second transport bar/fullscreen button inside the video.
+- The official YouTube viewport, branding, provider messages, playback SDK, resume
+  position, and native watching/credits integration remain. No iframe masking,
+  cropping, pointer interception, or stream extraction was added. Vimeo and TV
+  provider handoff behavior are unchanged.
+- The four provider-script checks pass. The YouTube check captures the actual
+  SDK configuration and exercises play/pause, clamped seeks, supported speeds,
+  and mute using SDK doubles. Build, lint, and all 45 JVM tests also pass.
+- Both targeted Android control checks pass on the emulator: native play/mute/
+  remote seeking and phone fullscreen/unknown-duration seeking behavior.
+- Physical phone testing remains deferred. These automated checks do not claim
+  live YouTube rendering or playback validation on a physical device.

@@ -173,9 +173,13 @@ features; editing/submitting suggestions continues on the website.
 The website's old player used Vidstack custom controls with official YouTube and
 Vimeo providers underneath. Android now has native JUMPFLIX controls driven by
 Media3 for direct/HLS sources and the official provider SDKs for phone embeds.
-The provider viewport and its own controls stay visible and unobscured. Supported
-speeds depend on the video/provider; an unavailable Vimeo control is a nonfatal
-message. TV YouTube/Vimeo still opens the provider app.
+YouTube's [documented player options](https://developers.google.com/youtube/player_parameters#controls)
+`controls=0` and `fs=0` remove its duplicate control
+bar/fullscreen button; the native JUMPFLIX controls drive the official IFrame API.
+The provider viewport stays unobscured, with YouTube branding and provider messages
+intact. Vimeo retains its provider controls. Supported speeds depend on the
+video/provider; an unavailable Vimeo control is a nonfatal message. TV
+YouTube/Vimeo still opens the provider app.
 
 The catalog's JUMPFLIX Bunny CDN receives the public website referrer for manifest
 and segment requests, as required by its existing configuration. Account tokens

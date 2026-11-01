@@ -4,7 +4,7 @@ package tv.jumpflix.player
 import org.json.JSONObject
 import tv.jumpflix.data.PlaybackSource
 
-/** Official provider embeds; no extraction, rehosting, or hidden provider controls. */
+/** Official provider embeds; custom controls use supported IFrame API options. */
 internal fun embedDocument(source: PlaybackSource, startSeconds: Long): String {
     val id = JSONObject.quote(source.providerId ?: "")
     val start = startSeconds.coerceAtLeast(0)
@@ -21,7 +21,7 @@ internal fun embedDocument(source: PlaybackSource, startSeconds: Long): String {
         }
         function onYouTubeIframeAPIReady() {
           player = new YT.Player('player', {width:'100%', height:'100%', videoId:$id,
-            playerVars:{autoplay:1, playsinline:1, start:$start, origin:'https://www.jumpflix.tv'},
+            playerVars:{autoplay:1, playsinline:1, controls:0, fs:0, start:$start, origin:'https://www.jumpflix.tv'},
             events:{onReady:function(){window.jumpflixState.ready=true;if(window.jumpflixWantsPause)player.pauseVideo();updateState();},
               onStateChange:updateState,onPlaybackRateChange:updateState,
               onError:function(){window.jumpflixState.error=true;window.jumpflixState.ready=false;}}
