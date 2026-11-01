@@ -184,3 +184,14 @@ screenshots remain in ignored local build/artifact directories.
 - Build and Android lint pass. Phone/TV stats layouts use emulator fixture data;
   a live signed-in physical-device stats round trip remains unverified. The phone
   is not currently connected to ADB. Existing map work in the checkout is separate.
+
+## Physical phone follow-up, 2026-11-01
+
+- Installed the current alpha 7 debug APK with `adb install -r` on the connected
+  A063. Package version 7 / `0.1.0-alpha7` and successful launch were confirmed.
+- The existing account session was preserved and Account showed Google connected.
+- Account → Your stats completed its live signed-in refresh on the physical phone.
+  The stats XPOP total matched the account header, loading finished, and no stats
+  error was displayed. Checks reported booleans without exposing account details.
+- This verifies installation, session preservation, and live account stats loading.
+  It does not extend the previous playback or map hardware-validation evidence.
