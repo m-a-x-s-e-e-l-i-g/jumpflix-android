@@ -14,6 +14,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -57,6 +59,7 @@ import tv.jumpflix.R
 import tv.jumpflix.CatalogState
 import tv.jumpflix.CatalogViewModel
 import tv.jumpflix.data.*
+import kotlinx.coroutines.launch
 import tv.jumpflix.player.PlaybackActivity
 import tv.jumpflix.xpop.*
 import tv.jumpflix.ui.nuvio.LightweightCard
@@ -352,8 +355,11 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
     markWatched: (Episode?) -> Unit, play: (PlaybackSource, String, String) -> Unit) {
     val context = LocalContext.current
     val focusRequester = remember(item.id) { FocusRequester() }
+    val creditsFocus = remember(item.id) { FocusRequester() }
+    val detailList = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     LaunchedEffect(item.id) { if (tv) focusRequester.requestFocus() }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), state = detailList, contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(if (tv) 300.dp else 310.dp)) {
                 FilmBackdrop(item, Modifier.fillMaxSize())
@@ -378,6 +384,9 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                     }
                     Action(if (item.id in state.saved) "Saved to my list" else "Save to my list", false, tv, onClick = toggleSaved)
                     Action("Open on JUMPFLIX", false, tv) { openExternal(context, item.url) }
+                    if (CreditReference.from(item.id) != null) Action("Spots & songs", false, tv) {
+                        scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; creditsFocus.requestFocus() } }
+                    }
                 }
                 if (!item.available) Text("This title is currently unavailable.", color = Muted)
                 if (item.paid) Text("This release stays with its official paid provider.", color = Muted, style = MaterialTheme.typography.bodySmall)
@@ -389,18 +398,34 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 state.detailError?.let { Text(it, color = Muted) }
             }
         }
+        if (item.type == "movie") item(key = "credits") {
+            CreditReference.from(item.id)?.let { reference ->
+                Box(Modifier.focusRequester(creditsFocus).focusGroup()) {
+                    VideoCreditsSection(reference, tv, item.available && !item.paid && item.playback != null) { seconds ->
+                        item.playback?.let { PlaybackActivity.open(context, item.id, item.id, item.title, it, seconds) }
+                    }
+                }
+            }
+        }
         item { MediaAccountControls(item, account, signedIn, tv, retry, signIn, rate, review) { markWatched(null) } }
         item.seasons.forEach { season ->
             item(key = "season-${season.number}") { Text(season.title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(24.dp)) }
             items(season.episodes, key = { "${season.number}:${it.id}" }) { episode ->
+                var showCredits by remember(item.id, episode.id) { mutableStateOf(false) }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("${episode.position.toString().padStart(2, '0')}  ${episode.title}", color = Ink)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         episode.playback?.let { source -> Action("Play", true, tv) { play(source, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title) } }
+                        Action(if (showCredits) "Hide spots & songs" else "Spots & songs", false, tv) { showCredits = !showCredits }
                         if (signedIn && account.loaded) {
                             val watched = watchKey(item.id, null, episode.id) in account.watched
                             XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !account.busy && !watched) { markWatched(episode) }
                         }
+                    }
+                }
+                if (showCredits) CreditReference.from(item.id, episode.id)?.let { reference ->
+                    VideoCreditsSection(reference, tv, item.available && !item.paid && episode.playback != null) { seconds ->
+                        episode.playback?.let { PlaybackActivity.open(context, item.id, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title, it, seconds) }
                     }
                 }
             }

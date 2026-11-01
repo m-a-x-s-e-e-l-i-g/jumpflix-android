@@ -35,13 +35,14 @@ class NativePlaybackSmokeTest {
         val intent = Intent(context, PlaybackActivity::class.java)
             .putExtra("itemId", film.getString("id")).putExtra("key", "qa-native-playback")
             .putExtra("title", film.getString("title")).putExtra("kind", source.getString("kind")).putExtra("url", source.getString("url"))
+            .putExtra("startSeconds", 20L)
         ActivityScenario.launch<PlaybackActivity>(intent).use { scenario ->
             val deadline = SystemClock.elapsedRealtime() + 45_000
             var ready = false
             while (!ready && SystemClock.elapsedRealtime() < deadline) {
                 scenario.onActivity { activity ->
                     val player = activity.window.decorView.descendants().filterIsInstance<PlayerView>().single().player!!
-                    ready = player.playbackState == Player.STATE_READY && player.currentPosition >= 2000 && player.duration > 0 &&
+                    ready = player.playbackState == Player.STATE_READY && player.currentPosition >= 20_000 && player.duration > 0 &&
                         ((player as ExoPlayer).videoDecoderCounters?.renderedOutputBufferCount ?: 0) > 0 &&
                         activity.window.decorView.descendants().any { it.contentDescription == "Pause" && it.isEnabled }
                 }
@@ -64,6 +65,7 @@ class NativePlaybackSmokeTest {
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
             scenario.onActivity { activity ->
                 val views = activity.window.decorView.descendants()
+                assertTrue(views.any { it.contentDescription == "Spots and songs in this video" && it.isShown })
                 val surface = views.filterIsInstance<PlayerView>().single()
                 assertFalse(surface.useController)
                 val player = surface.player!!

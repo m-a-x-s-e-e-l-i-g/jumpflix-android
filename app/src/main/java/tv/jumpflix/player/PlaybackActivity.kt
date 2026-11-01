@@ -46,6 +46,10 @@ import org.json.JSONTokener
 import tv.jumpflix.R
 import tv.jumpflix.data.LibraryStore
 import tv.jumpflix.data.PlaybackSource
+import tv.jumpflix.data.CreditReference
+import tv.jumpflix.data.VideoCredits
+import tv.jumpflix.data.VideoCreditsRepository
+import tv.jumpflix.data.urlAt
 import tv.jumpflix.ui.openExternal
 import tv.jumpflix.xpop.XpopRepository
 import tv.jumpflix.xpop.WatchedItem
@@ -58,6 +62,10 @@ class PlaybackActivity : ComponentActivity() {
     private lateinit var root: FrameLayout
     private lateinit var status: TextView
     private lateinit var controls: PlaybackControls
+    private lateinit var creditsView: PlaybackCredits
+    private var credits = VideoCredits()
+    private var creditsLoading = true
+    private var creditsReference: CreditReference? = null
     private lateinit var toolbar: LinearLayout
     private lateinit var chrome: LinearLayout
     private lateinit var source: PlaybackSource
@@ -74,7 +82,12 @@ class PlaybackActivity : ComponentActivity() {
     private var completionQueued = false
     private var accountWatchKey = ""
     private val handler = Handler(Looper.getMainLooper())
-    private val hideChrome = Runnable { if (player?.isPlaying == true) chrome.visibility = View.GONE }
+    private val hideChrome = object : Runnable {
+        override fun run() {
+            if (creditsView.dialogOpen) handler.postDelayed(this, 4000)
+            else if (player?.isPlaying == true) chrome.visibility = View.GONE
+        }
+    }
     private val poll = object : Runnable {
         override fun run() { updatePlayback(); handler.postDelayed(this, 500) }
     }
@@ -109,17 +122,34 @@ class PlaybackActivity : ComponentActivity() {
         } else layout.addView(surface, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         status = TextView(this).apply { setTextColor(Color.WHITE); textSize = 13f; setPadding(dp(16), dp(6), dp(16), dp(6)); visibility = View.GONE }
         layout.addView(status)
+        creditsView = PlaybackCredits(this, { command("seek", it.toDouble()); revealControls() },
+            { player?.pause(); sendWebCommand("pause"); openExternal(this, it) }, { loadCredits(true) })
+        layout.addView(creditsView)
         controls = PlaybackControls(this, television, ::command)
         layout.addView(controls)
         root.addView(layout, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
         adaptPlayerLayout()
-        val previous = library.progress().firstOrNull { it.key == playbackKey }?.takeIf { it.inProgress }?.positionMs ?: 0L
+        val requestedStart = intent.getLongExtra("startSeconds", -1).takeIf { it in 0..Int.MAX_VALUE.toLong() }?.times(1000)
+        val previous = requestedStart ?: library.progress().firstOrNull { it.key == playbackKey }?.takeIf { it.inProgress }?.positionMs ?: 0L
+        creditsReference = CreditReference.from(itemId, if (playbackKey.contains(":ep:")) playbackKey.substringAfterLast(":ep:") else null)
+        loadCredits()
         if (source.native) nativePlayer(surface, previous) else embeddedPlayer(surface, previous)
         revealControls()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { if (fullscreen != null) closeFullscreen() else finish() }
         })
+    }
+
+    private fun loadCredits(force: Boolean = false) {
+        val reference = creditsReference ?: run { creditsLoading = false; return }
+        creditsLoading = true
+        creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, true)
+        lifecycleScope.launch {
+            credits = VideoCreditsRepository(this@PlaybackActivity).load(reference, force)
+            creditsLoading = false
+            creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0)
+        }
     }
 
     private fun command(name: String, value: Double?) {
@@ -232,6 +262,7 @@ class PlaybackActivity : ComponentActivity() {
             snapshot = PlaybackSnapshot(video.currentPosition.coerceAtLeast(0), video.duration.coerceAtLeast(0), !video.playWhenReady || video.playbackState == Player.STATE_ENDED,
                 video.playbackParameters.speed, video.volume == 0f, video.playbackState != Player.STATE_IDLE)
             controls.render(snapshot)
+            creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, creditsLoading)
             if (save) recordProgress()
         }
         web?.evaluateJavascript("JSON.stringify(window.jumpflixState || {})") { encoded ->
@@ -243,6 +274,7 @@ class PlaybackActivity : ComponentActivity() {
                 snapshot = PlaybackSnapshot(milliseconds("position"), milliseconds("duration"), state.optBoolean("paused", true),
                     state.optDouble("rate", 1.0).toFloat(), state.optBoolean("muted"), state.optBoolean("ready"), rates.ifEmpty { listOf(1f) })
                 controls.render(snapshot)
+                creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, creditsLoading)
                 if (save) recordProgress()
                 if (state.optBoolean("error")) showStatus(if (source.kind == "vimeo" && state.optString("errorName") in setOf("PrivacyError", "PasswordError"))
                     "Vimeo is not allowing this film to play here. Its owner may have restricted access. Choose Provider to check availability."
@@ -279,12 +311,13 @@ class PlaybackActivity : ComponentActivity() {
     }
 
     companion object {
-        fun open(context: Context, itemId: String, key: String, title: String, source: PlaybackSource) {
+        fun open(context: Context, itemId: String, key: String, title: String, source: PlaybackSource, startSeconds: Long? = null) {
             val tv = (context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
             // Some TVs have no WebView; their provider apps remain the supported route.
-            if (source.kind == "external" || (tv && source.kind in setOf("youtube", "vimeo"))) { openExternal(context, source.url); return }
+            if (source.kind == "external" || (tv && source.kind in setOf("youtube", "vimeo"))) { openExternal(context, source.urlAt(startSeconds)); return }
             context.startActivity(Intent(context, PlaybackActivity::class.java).putExtra("itemId", itemId).putExtra("key", key)
                 .putExtra("title", title).putExtra("kind", source.kind).putExtra("url", source.url)
+                .putExtra("startSeconds", startSeconds ?: -1L)
                 .putExtra("watchKey", watchKey(itemId, source, if (key.contains(":ep:")) key.substringAfterLast(":ep:") else null)))
         }
     }

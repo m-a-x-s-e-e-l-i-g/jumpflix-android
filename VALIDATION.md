@@ -234,3 +234,36 @@ screenshots remain in ignored local build/artifact directories.
   Screenshots and UI fixtures are in the ignored artifacts/cache directories.
   The user deferred phone installation/testing until later; no alpha 9 physical
   device validation is claimed.
+
+## Alpha 10 video spots and songs
+
+- Film details expose approved spot chapters and existing song credits, with a
+  direct action that skips long descriptions/cast lists. Separate spot/song
+  selectors keep soundtracks reachable. Series chapters use the canonical
+  `series:<id>:ep:<episodeId>` key, independent of device-local season keys.
+- Spot entries include names, countries, time ranges, and parkour.spot links.
+  Songs include title/artist, explicit-lyrics labels, and Spotify links where
+  supplied. Manual songs without Spotify remain visible. Shared/absent song
+  timestamps are treated as untimed instead of guessing the current song.
+- Timestamp actions explicitly override resume position. Native/phone-provider
+  playback starts at that cue; TV provider handoffs pass official timestamp URLs.
+  Provider apps decide whether to honor them and do not expose JUMPFLIX overlays.
+- The custom player follows the current spot range/song start and exposes a
+  native credits dialog for seeking or opening credited links. The action remains
+  available in landscape; native controls stay visible while its dialog is open.
+- Public chapters and public soundtrack rows are fetched independently, without
+  user tokens. Ten-minute caches preserve previous lists on partial failure.
+  Retry, loading, and empty states are distinct. No database, auth configuration,
+  or website changes were made. The native map remains removed.
+- Build, lint (zero errors), 40 JVM tests, and all 25 emulator checks pass. New
+  coverage includes malformed/unsafe credit data, episode isolation, public-only
+  request headers, cached partial failures, cue/link callbacks, unavailable titles,
+  TV selector focus/shortcut navigation, player labels/dialog seeking, and native
+  HLS startup at a requested cue. No public ratings/reviews were posted.
+- An opt-in read-only emulator check fetched the published Peanutbutter credits:
+  Carcavelos Beach at 03:28 with Portugal metadata, plus O Mar Apaga by Banda Eddie.
+  Live film UI showed 14 spot chapters and 8 songs. Phone and TV credit selectors
+  and native player controls were visually checked; screenshots stay in ignored
+  `artifacts/`. Emulator display settings were restored after phone previews.
+- Phone installation/physical testing remains deferred at the user's request.
+  Alpha 10 is built; no physical Android/TV validation is claimed for this change.

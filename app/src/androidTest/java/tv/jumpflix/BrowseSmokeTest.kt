@@ -47,4 +47,13 @@ class BrowseSmokeTest {
         app.onNodeWithText("KEVIN FRANZÉN").assertExists()
         app.onNodeWithText("No films found").assertDoesNotExist()
     }
+
+    @Test fun detailsShortcutReachesCreditSelectorsWithTheRemote() {
+        awaitHome()
+        app.onNodeWithText("Discover film").activate()
+        app.onNode(hasText("Spots & songs") and hasClickAction()).activate()
+        app.waitUntil(10_000) { app.onAllNodes(hasText("Songs", substring = true) and hasClickAction()).fetchSemanticsNodes().isNotEmpty() }
+        app.onNode(hasText("Songs", substring = true) and hasClickAction()).assertIsDisplayed()
+        app.onNode(hasText("Songs", substring = true) and hasClickAction()).activate()
+    }
 }

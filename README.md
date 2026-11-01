@@ -17,6 +17,9 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - Home, discovery rows, title/creator/athlete search, and film/series details.
 - 2:3 portrait posters throughout home rows, search, and My list on phone and TV.
 - Device-local saved titles and resume progress, including separate episode keys.
+- Approved spot chapters and credited songs on film details, with per-episode spots
+  for series. Timestamp actions start playback at a cue; links open parkour.spot
+  and Spotify. The custom player follows the current spot/song and has a credits list.
 - Media3 playback for authorized direct/HLS streams.
 - Custom JUMPFLIX controls: play/pause, timeline, ±10 seconds, speed, mute, and
   phone fullscreen. Native streams fill the screen; controls hide during playback
@@ -119,6 +122,29 @@ refreshes keep the last loaded account snapshot and display an error; changing
 accounts clears it. No backend deployment or schema changes are required.
 Saved playback time is the sum of stored account positions, which may omit time
 for manually marked watches. In-progress resume positions remain device-local.
+
+## Spots and songs
+
+Choose **Spots & songs** in the film actions to jump past long cast lists, then
+switch between the spot and song selectors. Film details show the website's
+approved spots and published soundtrack. Expand
+**Spots & songs** beside a series episode to see that episode's chapters. Choose
+**Play from** to start at a known timestamp, **Open on parkour.spot** for a location,
+or **Open in Spotify** for a credited track. Manual songs without Spotify still appear.
+Multiple songs sharing an imported timestamp are shown as untimed; the player does
+not guess which one is active. Empty lists and failed requests have distinct states.
+
+The custom player offers **Spots & songs** alongside its controls, including in
+phone landscape. It follows approved spot ranges and unambiguous song starts using
+the player clock. Credits remain readable while paused, and selecting a cue seeks
+the current video. TV YouTube/Vimeo handoffs pass the timestamp to the official app;
+that app controls whether it honors the cue and cannot display JUMPFLIX overlays.
+
+Public chapters come from `/api/spot-chapters`; soundtrack rows use the existing
+public read policy on `video_songs` and `songs`. No sign-in, database changes, or
+website deployment is required. Each list is cached independently for ten minutes;
+failed refreshes retain saved credits and offer a retry. These are credit browsing
+features; editing/submitting suggestions continues on the website.
 
 ## Custom playback controls
 
