@@ -168,7 +168,9 @@ class PlaybackActivity : ComponentActivity() {
                     library.record(playbackKey, itemId, filmTitle, (position * 1000).toLong(), (duration * 1000).toLong())
                 }
                 if (state.optBoolean("error")) {
-                    status.text = "The provider cannot play this video here. Choose Open provider to continue."
+                    status.text = if (source.kind == "vimeo" && state.optString("errorName") in setOf("PrivacyError", "PasswordError"))
+                        "Vimeo is not allowing this film to play here. Its owner may have restricted access. Choose Open provider to check availability."
+                    else "The provider cannot play this video here. Choose Open provider to continue."
                     status.visibility = View.VISIBLE
                 }
             }
@@ -210,6 +212,7 @@ class PlaybackActivity : ComponentActivity() {
 internal fun embedDocument(source: PlaybackSource, startSeconds: Long): String {
     val id = JSONObject.quote(source.providerId ?: "")
     val start = startSeconds.coerceAtLeast(0)
+    val vimeoHash = source.vimeoPrivacyHash?.let { "&h=$it" }.orEmpty()
     val script = if (source.kind == "youtube") """
         <div id="player"></div><script src="https://www.youtube.com/iframe_api"></script>
         <script>
@@ -230,15 +233,26 @@ internal fun embedDocument(source: PlaybackSource, startSeconds: Long): String {
         };
         </script>
     """.trimIndent() else """
-        <iframe id="player" src="https://player.vimeo.com/video/${source.providerId}?autoplay=1#t=${start}s" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+        <script>
+        window.jumpflixState={};
+        function jumpflixVimeoError(error){window.jumpflixState.error=true;window.jumpflixState.errorName=(error&&error.name)||'Error';}
+        window.addEventListener('message',function(event){
+          var frame=document.getElementById('player');
+          if(event.origin!=='https://player.vimeo.com'||!frame||event.source!==frame.contentWindow)return;
+          var data=event.data;try{if(typeof data==='string')data=JSON.parse(data);}catch(e){return;}
+          if(data&&data.event==='error')jumpflixVimeoError(data.data);
+        });
+        </script>
+        <iframe id="player" title="Vimeo video player" src="https://player.vimeo.com/video/${source.providerId}?autoplay=1${vimeoHash}#t=${start}s" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         <script src="https://player.vimeo.com/api/player.js"></script><script>
-        window.jumpflixState={}; var player=new Vimeo.Player('player');
+        var player=new Vimeo.Player('player');
         player.on('timeupdate',function(data){window.jumpflixState.position=data.seconds;window.jumpflixState.duration=data.duration;});
-        player.on('error',function(){window.jumpflixState.error=true;});
+        player.on('error',jumpflixVimeoError);
+        player.ready().catch(jumpflixVimeoError);
         window.jumpflixControl=function(command){
-          if(command==='pause')player.pause();
-          else if(command==='toggle')player.getPaused().then(function(p){p?player.play():player.pause();});
-          else player.getCurrentTime().then(function(t){player.setCurrentTime(Math.max(0,t+(command==='back'?-10:10)));});
+          if(command==='pause')player.pause().catch(function(){});
+          else if(command==='toggle')player.getPaused().then(function(p){return p?player.play():player.pause();}).catch(jumpflixVimeoError);
+          else player.getCurrentTime().then(function(t){return player.setCurrentTime(Math.max(0,t+(command==='back'?-10:10)));}).catch(jumpflixVimeoError);
         };
         </script>
     """.trimIndent()

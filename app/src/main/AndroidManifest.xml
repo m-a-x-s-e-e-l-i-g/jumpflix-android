@@ -6,13 +6,15 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:label="JUMPFLIX"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:theme="@style/Theme.Jumpflix">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -27,6 +29,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="www.jumpflix.tv" android:pathPrefix="/movie/" />
                 <data android:scheme="https" android:host="www.jumpflix.tv" android:pathPrefix="/series/" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tv.jumpflix.android" android:host="auth" android:path="/callback" />
             </intent-filter>
         </activity>
         <activity android:name=".player.PlaybackActivity" android:exported="false"

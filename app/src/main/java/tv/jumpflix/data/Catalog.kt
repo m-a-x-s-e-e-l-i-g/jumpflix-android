@@ -15,11 +15,20 @@ data class PlaybackSource(val kind: String, val url: String) {
                 uri.rawQuery?.split('&')?.firstOrNull { it.startsWith("v=") }?.substring(2)
                     ?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
             } else null
-            "vimeo" -> if (uri.host in setOf("vimeo.com", "www.vimeo.com")) {
-                uri.path.trim('/').takeIf { it.matches(Regex("[0-9]+")) }
+            "vimeo" -> if (uri.host in setOf("vimeo.com", "www.vimeo.com", "player.vimeo.com")) {
+                uri.path.trim('/').split('/').let { parts -> if (parts.firstOrNull() == "video") parts.getOrNull(1) else parts.firstOrNull() }
+                    ?.takeIf { it.matches(Regex("[0-9]+")) }
             } else null
             else -> null
         }
+    }.getOrNull()
+
+    val vimeoPrivacyHash: String? get() = runCatching {
+        if (kind != "vimeo" || providerId == null) return@runCatching null
+        val uri = URI(url)
+        val hash = uri.rawQuery?.split('&')?.firstOrNull { it.startsWith("h=") }?.substring(2)
+            ?: uri.path.trim('/').split('/').getOrNull(1)?.takeIf { uri.host != "player.vimeo.com" }
+        hash?.takeIf { it.matches(Regex("[a-fA-F0-9]{6,64}")) }
     }.getOrNull()
 
     companion object {

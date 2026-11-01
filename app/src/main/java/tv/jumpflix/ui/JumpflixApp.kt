@@ -6,7 +6,9 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,18 +31,23 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import tv.jumpflix.BuildConfig
+import tv.jumpflix.R
 import tv.jumpflix.CatalogState
 import tv.jumpflix.CatalogViewModel
 import tv.jumpflix.data.*
@@ -49,16 +56,27 @@ import tv.jumpflix.ui.nuvio.LightweightCard
 
 private enum class Destination(val title: String, val icon: ImageVector) {
     Home("Home", Icons.Outlined.Home), Search("Search", Icons.Outlined.Search),
-    Library("My list", Icons.Outlined.Bookmarks), About("About", Icons.Outlined.Info),
+    Library("My list", Icons.Outlined.Bookmarks), Account("Account", Icons.Outlined.PersonOutline), About("About", Icons.Outlined.Info),
 }
 
 @Composable
 fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: String?) {
     val state by model.state.collectAsStateWithLifecycle()
+    val account by model.account.collectAsStateWithLifecycle()
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var query by rememberSaveable { mutableStateOf("") }
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    LaunchedEffect(account.googleUrl) {
+        account.googleUrl?.let { url ->
+            try { CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, Uri.parse(url)) }
+            catch (_: android.content.ActivityNotFoundException) { model.cancelGoogle(); Toast.makeText(context, "Install a browser to continue with Google.", Toast.LENGTH_LONG).show() }
+            finally { model.googleOpened() }
+        }
+    }
+    LaunchedEffect(account.oauthResult) {
+        if (account.oauthResult > 0) { model.closeDetail(); destination = Destination.Account }
+    }
     LaunchedEffect(state.catalog, initialSlug) {
         if (!deepLinkHandled && initialSlug != null) {
             state.catalog?.items?.firstOrNull { it.slug == initialSlug }?.let {
@@ -73,13 +91,13 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     JumpflixTheme {
         Row(Modifier.fillMaxSize().background(Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
             if (television) {
-                Column(Modifier.width(92.dp).fillMaxHeight().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Text("JF", color = Accent, fontWeight = FontWeight.Black, fontSize = 28.sp)
-                    Spacer(Modifier.height(12.dp))
+                Column(Modifier.width(92.dp).fillMaxHeight().padding(vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(48.dp, 62.dp))
+                    Spacer(Modifier.height(6.dp))
                     Destination.entries.forEach { entry ->
                         androidx.tv.material3.Button(
                             onClick = { model.closeDetail(); destination = entry },
-                            modifier = Modifier.size(56.dp).semantics { contentDescription = entry.title },
+                            modifier = Modifier.size(48.dp).semantics { contentDescription = entry.title },
                             contentPadding = PaddingValues(14.dp),
                             colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (destination == entry) Surface else Background),
                         ) { androidx.tv.material3.Icon(entry.icon, contentDescription = entry.title) }
@@ -97,6 +115,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                         Destination.Home -> Home(state, television, model::select, model::refresh)
                         Destination.Search -> Search(state.catalog?.items.orEmpty(), query, { query = it }, television, model::select)
                         Destination.Library -> Library(state, television, model::select)
+                        Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle)
                         Destination.About -> About(state, television, model::refresh)
                     }
                 }
@@ -117,10 +136,14 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
 }
 
 @Composable
-private fun Brand(modifier: Modifier = Modifier) {
-    Column(modifier) {
-        Text("JUMPFLIX", color = Accent, fontSize = 25.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Black)
-        Text("PARKOUR CINEMA", color = Muted, fontSize = 9.sp, letterSpacing = 2.6.sp)
+internal fun Brand(modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(49.dp, 64.dp))
+        Column {
+            Text("JUMPFLIX", color = Color(0xFFE63B28), fontSize = 39.sp, letterSpacing = 3.sp,
+                fontFamily = FontFamily(Font(R.font.bebas_neue)), modifier = Modifier.graphicsLayer { rotationX = 12f; scaleX = 1.04f })
+            Text("PARKOUR CINEMA", color = Muted, fontSize = 8.sp, letterSpacing = 2.sp)
+        }
     }
 }
 
@@ -167,7 +190,7 @@ private fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit
 private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) -> Unit) {
     var index by rememberSaveable { mutableIntStateOf(0) }
     val item = items[index.coerceIn(0, items.lastIndex)]
-    Box(Modifier.fillMaxWidth().height(if (tv) 290.dp else 470.dp)) {
+    Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else 470.dp)) {
         AsyncImage(item.thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Background.copy(alpha = 0.15f), Background.copy(alpha = 0.25f), Background))))
         if (tv) Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.96f), Background.copy(alpha = 0.6f), Color.Transparent))))
@@ -177,10 +200,9 @@ private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) ->
             horizontalAlignment = if (tv) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("FROM THE PARKOUR ARCHIVE", color = Ink, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
+            if (!tv) Text("FROM THE PARKOUR ARCHIVE", color = Ink, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
             Text(item.title, color = Ink, fontWeight = FontWeight.Black, fontSize = if (tv) 34.sp else 32.sp, lineHeight = if (tv) 41.sp else 38.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = if (tv) androidx.compose.ui.text.style.TextAlign.Start else androidx.compose.ui.text.style.TextAlign.Center)
             Text(item.metadata, color = Muted, style = MaterialTheme.typography.bodySmall)
-            if (tv) Text(item.description, color = Muted, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Action("Discover film", true, tv) { select(item) }
                 Action("Next pick", false, tv) { index = (index + 1) % items.size }
@@ -320,7 +342,7 @@ private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
         item { Text("${state.catalog?.items?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }
         item { Action(if (state.loading) "Refreshing…" else "Refresh catalog", true, tv, onClick = refresh) }
         state.error?.let { error -> item { Text(error, color = Muted) } }
-        item { Text("Saved titles and watch progress stay on this device. Account sync, ratings, reviews, maps, and casting are not included in this first alpha.", color = Muted) }
+        item { Text("Sign in to your existing JUMPFLIX account in the Account tab. Saved titles and watch progress stay on this device in this build; account history sync, ratings, reviews, maps, and casting are still to come.", color = Muted) }
         item { HorizontalDivider(color = Surface) }
         item { Text("Open source & acknowledgments", color = Ink, fontWeight = FontWeight.Bold) }
         item { Text("This client is licensed under GNU GPL v3. Its TV focus card is adapted from NuvioTV by the Nuvio contributors. The interface follows Nuvio’s cinema-first browsing, with JUMPFLIX branding and catalog. Noto Sans is licensed under the SIL Open Font License. Gradle wrapper: Apache License 2.0.", color = Muted) }
@@ -333,6 +355,7 @@ private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
 private fun EmptyState(title: String, body: String, retry: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.Start) {
         Spacer(Modifier.weight(1f))
+        Image(painterResource(if (retry != null) R.drawable.mascot_sad else R.drawable.mascot_search), "JUMPFLIX popcorn character", Modifier.size(92.dp, 112.dp))
         Text(title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
         Text(body, color = Muted)
         retry?.let { Button(it) { Text("Try again") } }

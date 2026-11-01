@@ -30,6 +30,17 @@ analytics, update service, and credentials are not included.
 - Apache License 2.0; original script headers retained.
 - The wrapper verifies the Gradle distribution with its pinned SHA-256.
 
+## JUMPFLIX branding and Bebas Neue
+
+- Original character images are copied unchanged from the project owner's website
+  assets: `jumpflix.png`, `sad-jumpflix.webp`, and `searching-jumpflix-logo.webp`.
+- The adaptive icon places the original character on the existing brand-red background.
+- The wordmark uses the same Bebas Neue family as the website.
+- Font source: https://github.com/google/fonts/tree/main/ofl/bebasneue
+- SIL Open Font License 1.1 in `third-party/BebasNeue-OFL.txt` and app license assets.
+- Branding/artwork remains the project owner's material; the native code license
+  does not independently relicense it.
+
 ## Other dependencies
 
 AndroidX/Compose/Media3, OkHttp, Coil, Kotlin and JUnit retain their upstream

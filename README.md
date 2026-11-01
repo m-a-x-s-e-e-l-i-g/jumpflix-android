@@ -16,11 +16,48 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - Official YouTube/Vimeo app handoff on TV, where WebView support varies. Playback
   inside another provider's app cannot report progress back to JUMPFLIX.
 - TV launcher support and remote-friendly buttons and cards.
+- The original JUMPFLIX popcorn character, mascot launcher icon, and Bebas Neue wordmark.
+- Email/password sign-in to the existing JUMPFLIX account service, encrypted session
+  persistence with Android Keystore, refresh on restore, and device-local sign-out.
+- Google sign-in through the system browser, with a one-time PKCE return to the app.
 - A dated real catalog snapshot for browsing when refresh is unavailable.
-- No app credentials, private API tokens, or service-role keys are bundled.
+- No private API tokens, service-role keys, or user sessions are bundled.
 
-Accounts and cross-device sync, ratings/reviews, maps, casting, notifications,
+Cross-device history/list sync, ratings/reviews, maps, casting, notifications,
 offline video downloads, and iOS/tvOS builds are outside this first alpha.
+
+## Accounts
+
+Use the **Account** tab to sign in with the same email and password as jumpflix.tv.
+The bundled `auth-config.json` contains only the website's public Supabase URL and
+public anonymous/publishable key. It contains no service-role key or user session.
+Passwords go directly to that HTTPS Auth service and are never persisted. Session
+tokens are encrypted with an Android Keystore AES-GCM key, and backups/transfers
+of app data are disabled. Sign-out uses `scope=local` so website sessions stay intact.
+
+Choose **Continue with Google** for the same Google account you use on the website.
+The app opens the system browser, keeps the private PKCE verifier encrypted on the
+device, and exchanges the returned one-time code directly with Supabase. It never
+receives your Google password. Pending sign-ins expire after ten minutes and are
+consumed once. The exact Supabase redirect entry is:
+
+```text
+tv.jumpflix.android://auth/callback
+```
+
+This entry was added to the existing project's auth redirect allowlist on
+2026-11-01; the website URL and Google provider configuration were preserved.
+For another Supabase deployment, add that exact URI to Auth → URL Configuration.
+Signing in does not yet synchronize the app's device-local saved list or playback
+progress with website history.
+
+## Vimeo availability
+
+The player preserves unlisted-video privacy hashes and catches provider privacy
+errors, including errors sent before the Vimeo SDK is ready. It shows a native
+explanation and an official-provider fallback. Owner restrictions are not bypassed.
+On 2026-11-01, `Balancing Organisms` (223802198) returned HTTP 403 / `PrivacyError`
+from Vimeo even outside this app. Other Vimeo titles can remain playable.
 
 ## Build
 
