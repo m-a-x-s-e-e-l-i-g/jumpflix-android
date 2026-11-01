@@ -13,6 +13,9 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - 2:3 portrait posters throughout home rows, search, and My list on phone and TV.
 - Device-local saved titles and resume progress, including separate episode keys.
 - Media3 playback for authorized direct/HLS streams.
+- Custom JUMPFLIX controls: play/pause, timeline, ±10 seconds, speed, mute, and
+  phone fullscreen. Native streams fill the screen; controls hide during playback
+  and return on touch or remote input. Media remote buttons also work natively.
 - Official YouTube and Vimeo embeds on phones, with an external-provider fallback.
 - Official YouTube/Vimeo app handoff on TV, where WebView support varies. Playback
   inside another provider's app cannot report progress back to JUMPFLIX.
@@ -66,6 +69,19 @@ errors, including errors sent before the Vimeo SDK is ready. It shows a native
 explanation and an official-provider fallback. Owner restrictions are not bypassed.
 On 2026-11-01, `Balancing Organisms` (223802198) returned HTTP 403 / `PrivacyError`
 from Vimeo even outside this app. Other Vimeo titles can remain playable.
+
+## Custom playback controls
+
+The website's old player used Vidstack custom controls with official YouTube and
+Vimeo providers underneath. Android now has native JUMPFLIX controls driven by
+Media3 for direct/HLS sources and the official provider SDKs for phone embeds.
+The provider viewport and its own controls stay visible and unobscured. Supported
+speeds depend on the video/provider; an unavailable Vimeo control is a nonfatal
+message. TV YouTube/Vimeo still opens the provider app.
+
+The catalog's JUMPFLIX Bunny CDN receives the public website referrer for manifest
+and segment requests, as required by its existing configuration. Account tokens
+are never attached to video requests.
 
 ## Build
 
@@ -123,6 +139,24 @@ Use an Android TV emulator for focus, Back, search, scrolling, details, saving,
 and native player controls. A successful build or emulator run is not evidence
 of playback on real TV hardware. Provider embeds, codecs, audio, and performance
 still need a TV/Google TV tester before claiming device support.
+
+Provider-control bridge checks run without network requests:
+
+```powershell
+node --test scripts/test-player-bridge.mjs
+```
+
+The normal instrumentation suite skips the real-stream network smoke test. To
+run that check explicitly against a chosen emulator, install the debug APK and
+test APK, then run:
+
+```powershell
+adb -s emulator-5554 shell am instrument -w -r -e class tv.jumpflix.player.NativePlaybackSmokeTest -e nativePlaybackSmoke true tv.jumpflix.android.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+It checks decoded HLS video, elapsed time, pause, seek, and mute using a real
+catalog title. It requires internet access and does not establish audio quality
+or real-device compatibility.
 
 ## License and upstream reuse
 

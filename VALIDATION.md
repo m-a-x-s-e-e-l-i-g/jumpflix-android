@@ -103,3 +103,31 @@ screenshots remain in ignored local build/artifact directories.
 - The phone disconnected before the final keyboard-search adjustment could be
   reinstalled. The portrait/account update was already installed and verified;
   the latest APK additionally includes the verified keyboard-search adjustment.
+
+## Alpha 5 custom player controls
+
+- Added native JUMPFLIX play/pause, timeline seeking, ±10 seconds, speed, mute,
+  and phone fullscreen controls. Native Media3 video fills the screen behind
+  controls that hide while playing and return on user input. D-pad seeking and
+  media remote play/pause/seek keys are supported.
+- Phone YouTube/Vimeo controls use the official iframe SDKs. The entire provider
+  viewport remains visible; providers still render the video. TV provider handoff
+  remains in place. This is not a port of every Vidstack website feature.
+- Four offline Node bridge checks execute the actual provider scripts with SDK
+  doubles: YouTube supported rates/state/seek bounds, Vimeo mute/seek/nonfatal
+  speed errors, origin/source validation of privacy errors, and early lifecycle
+  pause before SDK readiness. These do not establish live provider playback.
+- Nineteen JVM tests, Android build, and lint pass (zero lint errors).
+- Eight regular emulator instrumented checks pass, including the two new custom
+  control tests for playback state, D-pad seeking, and phone fullscreen availability.
+- The real HLS stream initially returned 403 in Media3. Both catalog HLS manifests
+  independently returned 403 without the site referrer and 200 with it. Native
+  loading now applies that public referrer only to the catalog's exact CDN host.
+- An additional opt-in emulator network check starts `Enter the Breach` with
+  Media3, checks decoded video and advancing position, and exercises custom pause,
+  forward seek, and mute. It also verifies that controls hide, return on D-pad
+  input, and pause through the media remote key. It passes after the CDN request fix.
+- The updated APK is built locally. No physical phone was connected for this
+  update; new controls, fullscreen/rotation, live provider controls, audio, and
+  real TV playback still need physical-device testing. Prior Vimeo playback
+  evidence above applies to the previous player UI.
