@@ -37,7 +37,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,9 +73,17 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     val xpop by model.xpop.collectAsStateWithLifecycle()
     val interaction by model.interaction.collectAsStateWithLifecycle()
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
+    var accountNavigationVersion by rememberSaveable { mutableIntStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val phoneRail = !television && configuration.screenWidthDp >= 600 && configuration.screenWidthDp > configuration.screenHeightDp
+    fun navigate(entry: Destination) {
+        model.closeDetail()
+        if (entry == Destination.Account) accountNavigationVersion++
+        destination = entry
+    }
     LaunchedEffect(state.selected?.id, account.profile?.id, xpop.summary?.watching) { state.selected?.let(model::loadInteractions) }
     LaunchedEffect(xpop.reward?.id) {
         xpop.reward?.id?.let { id -> kotlinx.coroutines.delay(3000); model.dismissXpop(id) }
@@ -100,27 +110,35 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
         if (state.selected != null) model.closeDetail() else destination = Destination.Home
     }
     JumpflixTheme {
-        Row(Modifier.fillMaxSize().background(Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        Row(Modifier.fillMaxSize().background(Background).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) {
             if (television) {
-                Column(Modifier.width(92.dp).fillMaxHeight().padding(vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.width(96.dp).fillMaxHeight().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(48.dp, 62.dp))
                     Spacer(Modifier.height(6.dp))
                     Destination.entries.forEach { entry ->
-                        androidx.tv.material3.Button(
-                            onClick = { model.closeDetail(); destination = entry },
-                            modifier = Modifier.size(48.dp).semantics { contentDescription = entry.title },
-                            contentPadding = PaddingValues(14.dp),
-                            colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (destination == entry) Surface else Background),
-                        ) { androidx.tv.material3.Icon(entry.icon, contentDescription = entry.title) }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            androidx.tv.material3.Button(
+                                onClick = { navigate(entry) },
+                                modifier = Modifier.size(48.dp).semantics { contentDescription = entry.title },
+                                contentPadding = PaddingValues(14.dp),
+                                colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (destination == entry) Surface else Background),
+                            ) { androidx.tv.material3.Icon(entry.icon, contentDescription = null) }
+                            Text(entry.title, color = if (destination == entry) Ink else Muted, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            } else if (phoneRail) {
+                NavigationRail(Modifier.fillMaxHeight().width(80.dp), containerColor = Background, windowInsets = WindowInsets(0, 0, 0, 0)) {
+                    Spacer(Modifier.height(16.dp))
+                    Destination.entries.filter { it != Destination.About }.forEach { entry ->
+                        NavigationRailItem(selected = destination == entry, onClick = { navigate(entry) },
+                            icon = { Icon(entry.icon, null) }, label = { Text(entry.title) },
+                            colors = NavigationRailItemDefaults.colors(indicatorColor = SurfaceRaised, selectedIconColor = Accent, selectedTextColor = Ink, unselectedIconColor = Muted, unselectedTextColor = Muted))
                     }
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (account.profile != null && xpop.ownerId == account.profile?.id && xpop.summary != null) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
-                        TextButton({ model.closeDetail(); destination = Destination.Account }) { XpopMark("${java.text.NumberFormat.getIntegerInstance().format(xpop.summary!!.total)} XPOP") }
-                    }
-                }
+                if (!television) PhoneMasthead(xpop.summary?.takeIf { xpop.ownerId == account.profile?.id }) { navigate(Destination.Account) }
                 Box(Modifier.weight(1f)) {
                     val selected = state.selected
                     if (selected != null) {
@@ -134,16 +152,17 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                         Destination.Home -> Home(state, television, model::select, model::refresh)
                         Destination.Search -> Search(state.catalog?.items.orEmpty(), query, { query = it }, television, model::select)
                         Destination.Library -> Library(state, television, model::select)
-                        Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop)
+                        Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
                         Destination.About -> About(state, television, model::refresh)
                     }
                     xpop.reward?.takeIf { xpop.ownerId == account.profile?.id }?.let { XpopNotice(it, Modifier.align(Alignment.TopCenter).padding(16.dp)) }
                 }
-                if (!television) {
+                if (!television && !phoneRail) {
+                    HorizontalDivider(color = Outline.copy(alpha = .5f))
                     NavigationBar(containerColor = Background, tonalElevation = 0.dp) {
-                        Destination.entries.forEach { entry ->
+                        Destination.entries.filter { it != Destination.About }.forEach { entry ->
                             NavigationBarItem(
-                                selected = destination == entry, onClick = { model.closeDetail(); destination = entry },
+                                selected = destination == entry, onClick = { navigate(entry) },
                                 icon = { Icon(entry.icon, contentDescription = null) }, label = { Text(entry.title) },
                                 colors = NavigationBarItemDefaults.colors(indicatorColor = Surface, selectedIconColor = Accent, selectedTextColor = Ink, unselectedIconColor = Muted),
                             )
@@ -156,14 +175,26 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
 }
 
 @Composable
-internal fun Brand(modifier: Modifier = Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(49.dp, 64.dp))
+internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(if (compact) 32.dp else 49.dp, if (compact) 42.dp else 64.dp))
         Column {
-            Text("JUMPFLIX", color = Color(0xFFE63B28), fontSize = 39.sp, letterSpacing = 3.sp,
+            Text("JUMPFLIX", color = Accent, fontSize = if (compact) 30.sp else 39.sp, letterSpacing = if (compact) 2.sp else 3.sp,
                 fontFamily = FontFamily(Font(R.font.bebas_neue)), modifier = Modifier.graphicsLayer { rotationX = 12f; scaleX = 1.04f })
-            Text("PARKOUR CINEMA", color = Muted, fontSize = 8.sp, letterSpacing = 2.sp)
+            if (!compact) Text("PARKOUR CINEMA", color = Muted, fontSize = 8.sp, letterSpacing = 2.sp)
         }
+    }
+}
+
+@Composable
+internal fun PhoneMasthead(summary: XpopSummary?, account: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Brand(compact = true)
+        if (summary != null) {
+            TextButton(account, modifier = Modifier.heightIn(min = 48.dp).widthIn(max = 164.dp).semantics { contentDescription = "Account, ${summary.total} XPOP" }, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                XpopMark("${java.text.NumberFormat.getIntegerInstance().format(summary.total)} XPOP")
+            }
+        } else IconButton(account, Modifier.size(48.dp)) { Icon(Icons.Outlined.PersonOutline, "Open account", tint = Muted) }
     }
 }
 
@@ -179,17 +210,20 @@ private fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit
         EmptyState(if (state.loading) "Loading the archive…" else "The archive is taking a break", state.error ?: "Finding films and the people behind them.", if (state.loading) null else refresh)
         return
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item(key = "hero") {
             if (featured.isNotEmpty()) Hero(featured, tv, select) else Brand(Modifier.padding(24.dp))
         }
         if (state.cached) item(key = "cache") {
             Row(Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Outlined.CloudOff, null, tint = Muted, modifier = Modifier.size(18.dp))
                 Column(Modifier.weight(1f)) {
                     Text(if (state.loading) "Refreshing saved catalog…" else "Browsing saved catalog", color = Muted, style = MaterialTheme.typography.labelLarge)
-                    Text("Saved ${state.catalog?.generatedAt?.take(10).orEmpty()}", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
-                if (!state.loading) Action("Retry", false, tv, onClick = refresh)
+                if (!state.loading) {
+                    if (tv) Action("Retry", false, true, onClick = refresh)
+                    else TextButton(refresh, Modifier.heightIn(min = 48.dp)) { Text("Retry", color = Muted) }
+                }
             }
         }
         val continueIds = state.progress.filter { it.inProgress }.map { it.itemId }.distinct()
@@ -210,18 +244,19 @@ private fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit
 private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) -> Unit) {
     var index by rememberSaveable { mutableIntStateOf(0) }
     val item = items[index.coerceIn(0, items.lastIndex)]
-    Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else 470.dp)) {
-        AsyncImage(item.thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Background.copy(alpha = 0.15f), Background.copy(alpha = 0.25f), Background))))
+    val shortScreen = LocalConfiguration.current.screenHeightDp < 500
+    Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else if (shortScreen) 280.dp else 350.dp)) {
+        FilmBackdrop(item, Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Background.copy(alpha = .05f), .3f to Background.copy(alpha = .15f), .65f to Background.copy(alpha = .85f), 1f to Background)))
         if (tv) Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.96f), Background.copy(alpha = 0.6f), Color.Transparent))))
-        Brand(Modifier.align(Alignment.TopStart).padding(24.dp))
+        if (tv) Brand(Modifier.align(Alignment.TopStart).padding(24.dp))
         Column(
-            Modifier.align(if (tv) Alignment.BottomStart else Alignment.BottomCenter).fillMaxWidth(if (tv) 0.68f else 1f).padding(horizontal = 24.dp, vertical = 20.dp),
-            horizontalAlignment = if (tv) Alignment.Start else Alignment.CenterHorizontally,
+            Modifier.align(Alignment.BottomStart).fillMaxWidth(if (tv) 0.68f else 1f).padding(horizontal = 24.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (!tv) Text("FROM THE PARKOUR ARCHIVE", color = Ink, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
-            Text(item.title, color = Ink, fontWeight = FontWeight.Black, fontSize = if (tv) 34.sp else 32.sp, lineHeight = if (tv) 41.sp else 38.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = if (tv) androidx.compose.ui.text.style.TextAlign.Start else androidx.compose.ui.text.style.TextAlign.Center)
+            if (!tv) Text(if (item.type == "series") "FEATURED SERIES" else "FEATURED FILM", color = Muted, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
+            Text(item.title, color = Ink, fontWeight = FontWeight.Bold, fontSize = if (tv) 34.sp else 30.sp, lineHeight = if (tv) 41.sp else 37.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             Text(item.metadata, color = Muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Action("Discover film", true, tv) { select(item) }
@@ -258,7 +293,7 @@ private fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifi
         }
         Column(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(item.title, style = MaterialTheme.typography.titleSmall, color = Ink, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(item.metadata.ifBlank { if (item.type == "series") "Series" else "Film" }, color = Muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.metadata.ifBlank { if (item.type == "series") "Series" else "Film" }, color = Muted, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
     if (tv) {
@@ -275,12 +310,16 @@ private fun Search(all: List<CatalogItem>, query: String, changeQuery: (String) 
     var filter by rememberSaveable { mutableStateOf("All") }
     val results = remember(all, query, filter) { all.filter { it.matches(query) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
-        Text("Find your next film", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Ink)
+        PageHeading("Find your next film", "Search titles, creators, and athletes.")
         Spacer(Modifier.height(18.dp))
         OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 12.dp)) {
-            listOf("All", "Films", "Series", "Free").forEach { name -> Action(name, name == filter, tv) { filter = name } }
+            shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
+            items(listOf("All", "Films", "Series", "Free")) { name ->
+                if (tv) Action(name, name == filter, true) { filter = name }
+                else FilterChip(selected = name == filter, onClick = { filter = name }, label = { Text(name) }, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(10.dp),
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = SurfaceRaised, selectedLabelColor = Ink))
+            }
         }
         Text("${results.size} titles", color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 14.dp))
         if (results.isEmpty()) EmptyState("No films found", "Try a different title, creator, or athlete.")
@@ -292,8 +331,8 @@ private fun Search(all: List<CatalogItem>, query: String, changeQuery: (String) 
 private fun Library(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit) {
     val films = state.catalog?.items.orEmpty().filter { it.id in state.saved }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
-        Text("Your next movie night", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
-        Text("Your list is saved on this device.", color = Muted, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
+        PageHeading("Your next movie night", "Your list is saved on this device.")
+        Spacer(Modifier.height(24.dp))
         if (films.isEmpty()) EmptyState("Make room for a good film", "Open a film and choose Save to my list. It will be waiting here.")
         else FilmGrid(films, tv, select)
     }
@@ -301,7 +340,7 @@ private fun Library(state: CatalogState, tv: Boolean, select: (CatalogItem) -> U
 
 @Composable
 private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) -> Unit) {
-    LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), contentPadding = PaddingValues(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), modifier = Modifier.testTag("film-grid"), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         gridItems(items, key = { it.id }) { item -> FilmCard(item, tv) { select(item) } }
     }
 }
@@ -316,14 +355,20 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
     LaunchedEffect(item.id) { if (tv) focusRequester.requestFocus() }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
-            Box(Modifier.fillMaxWidth().height(if (tv) 270.dp else 260.dp)) {
-                AsyncImage(item.thumbnail, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxWidth().height(if (tv) 300.dp else 310.dp)) {
+                FilmBackdrop(item, Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Background.copy(alpha = 0.15f), Background))))
                 Box(Modifier.padding(20.dp)) { Action("Back", false, tv, Modifier.focusRequester(focusRequester), back) }
+                Row(Modifier.align(Alignment.BottomStart).padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    AsyncImage(item.thumbnail, null, Modifier.width(if (tv) 108.dp else 90.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)).background(Surface), contentScale = ContentScale.Crop)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (item.type == "series") "SERIES" else "FILM", color = Muted, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.5.sp)
+                        Text(item.title, color = Ink, fontWeight = FontWeight.Bold, style = if (tv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineSmall, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                        Text(item.metadata, color = Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
             Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(item.title, color = Ink, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineLarge)
-                Text(item.metadata, color = Muted)
                 if (item.explicit) Text("Contains mature themes or strong language", color = Muted, style = MaterialTheme.typography.bodySmall)
                 if (item.rating != null && item.ratingCount > 0) Text("Bangerometer  ${"%.1f".format(item.rating)}  ·  ${item.ratingCount} ratings", color = Muted, style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -336,7 +381,8 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 }
                 if (!item.available) Text("This title is currently unavailable.", color = Muted)
                 if (item.paid) Text("This release stays with its official paid provider.", color = Muted, style = MaterialTheme.typography.bodySmall)
-                Text(item.description, color = Ink, style = MaterialTheme.typography.bodyLarge)
+                Text("About this ${if (item.type == "series") "series" else "film"}", color = Ink, style = MaterialTheme.typography.titleMedium)
+                Text(item.description, color = Muted, style = MaterialTheme.typography.bodyLarge)
                 if (item.creators.isNotEmpty()) Text("Created by  ${item.creators.joinToString(", ")}", color = Muted)
                 if (item.starring.isNotEmpty()) Text("Featuring  ${item.starring.joinToString(", ")}", color = Muted)
                 if (state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Accent)
@@ -365,7 +411,7 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
 @Composable
 private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
     val context = LocalContext.current
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+    LazyColumn(Modifier.widthIn(max = 640.dp).fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
         item { Brand() }
         item { Text("Parkour cinema,\nwherever you watch.", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineLarge) }
         item { Text("Films, documentaries, and movement stories from the global parkour community. Creators keep their credit, their views, and control of their work.", color = Muted, style = MaterialTheme.typography.bodyLarge) }
@@ -388,18 +434,14 @@ private fun EmptyState(title: String, body: String, retry: (() -> Unit)? = null)
         Image(painterResource(if (retry != null) R.drawable.mascot_sad else R.drawable.mascot_search), "JUMPFLIX popcorn character", Modifier.size(92.dp, 112.dp))
         Text(title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium)
         Text(body, color = Muted)
-        retry?.let { Button(it) { Text("Try again") } }
+        retry?.let { AppAction("Try again", false, primary = true, action = it) }
         Spacer(Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun Action(label: String, primary: Boolean, tv: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    if (tv) {
-        androidx.tv.material3.Button(onClick, modifier, colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (primary) Accent else Surface, contentColor = Ink)) { androidx.tv.material3.Text(label) }
-    } else {
-        Button(onClick, modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = if (primary) Accent else Surface, contentColor = Ink)) { Text(label) }
-    }
+    AppAction(label, tv, primary = primary, modifier = modifier, action = onClick)
 }
 
 fun openExternal(context: Context, url: String) {

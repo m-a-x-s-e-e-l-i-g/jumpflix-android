@@ -9,7 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -17,15 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,7 +42,7 @@ internal fun UserStatsScreen(owner: String, tv: Boolean, back: () -> Unit) {
     UserStatsContent(state.takeIf { it.ownerId == owner } ?: UserStatsState(owner, loading = true), tv, { model.load(owner) }, back)
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun UserStatsContent(state: UserStatsState, tv: Boolean, refresh: () -> Unit, back: () -> Unit) {
     val context = LocalContext.current
@@ -58,29 +52,13 @@ internal fun UserStatsContent(state: UserStatsState, tv: Boolean, refresh: () ->
     var page by rememberSaveable(state.ownerId) { mutableIntStateOf(0) }
     val data = state.data
     val list = rememberLazyListState()
-    val refreshIfIdle = { if (!state.loading) refresh() }
-    PullToRefreshBox(
-        isRefreshing = state.loading,
-        onRefresh = refreshIfIdle,
-        modifier = Modifier.fillMaxSize().widthIn(max = 1040.dp).testTag("stats-refresh").semantics {
-            customActions = listOf(CustomAccessibilityAction("Refresh stats") { refreshIfIdle(); true })
-        }.onPreviewKeyEvent { event ->
-            if (tv && event.key == Key.DirectionUp && event.type == KeyEventType.KeyDown &&
-                !list.canScrollBackward && event.nativeKeyEvent.repeatCount == 0) {
-                refreshIfIdle(); true
-            } else false
-        }
-    ) {
+    RefreshableScreen(list, state.loading, refresh, tv, "Refresh stats", "stats-refresh", Modifier.widthIn(max = 1040.dp).fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("stats-list"), state = list, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (tv) {
-                        androidx.tv.material3.Button(back, modifier = Modifier.focusRequester(focus)) { androidx.tv.material3.Text("Back to account") }
-                        // Lazy items are composed after their parent; request only once attached.
-                        LaunchedEffect(Unit) { if (!initialFocusSet) { focus.requestFocus(); initialFocusSet = true } }
-                    } else XpopAction("Back to account", false, action = back)
-                    Text("Your stats", color = Ink, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text("From your JUMPFLIX account, across the website and the app.", color = Muted)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppAction("Back to account", tv, modifier = Modifier.focusRequester(focus), icon = Icons.Outlined.ArrowBack, action = back)
+                    LaunchedEffect(Unit) { if (tv && !initialFocusSet) { focus.requestFocus(); initialFocusSet = true } }
+                    PageHeading("Your stats", "Your JUMPFLIX activity, in one place.")
                 }
             }
             state.error?.let { message -> item {
@@ -101,12 +79,14 @@ internal fun UserStatsContent(state: UserStatsState, tv: Boolean, refresh: () ->
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         StatsHeading("Watching")
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            val columns = if (maxWidth >= 720.dp) 3 else 2
-                            val width = (maxWidth - 12.dp * (columns - 1)) / columns
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                StatsKpi("Watched entries", number.format(overview.watched), "${number.format(overview.movies)} films · ${number.format(overview.series)} series · ${number.format(overview.episodes)} episodes", Modifier.width(width))
-                                StatsKpi("Saved playback time", statsDuration(overview.positionSeconds), "Based on account playback positions", Modifier.width(width))
-                                StatsKpi("Average rating", overview.averageRating?.let { String.format("%.1f / 10", it) } ?: "—", "${number.format(overview.ratings)} ratings · ${number.format(overview.reviews)} reviews", Modifier.width(width))
+                            val wide = maxWidth >= 720.dp
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                if (!wide) StatsKpi("Watched entries", number.format(overview.watched), "${number.format(overview.movies)} films · ${number.format(overview.series)} series · ${number.format(overview.episodes)} episodes", Modifier.fillMaxWidth())
+                                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    if (wide) StatsKpi("Watched entries", number.format(overview.watched), "${number.format(overview.movies)} films · ${number.format(overview.series)} series · ${number.format(overview.episodes)} episodes", Modifier.weight(1f).fillMaxHeight())
+                                    StatsKpi("Saved playback time", statsDuration(overview.positionSeconds), "Based on account playback positions", Modifier.weight(1f).fillMaxHeight())
+                                    StatsKpi("Average rating", overview.averageRating?.let { String.format("%.1f / 10", it) } ?: "—", "${number.format(overview.ratings)} ratings · ${number.format(overview.reviews)} reviews", Modifier.weight(1f).fillMaxHeight())
+                                }
                             }
                         }
                         Text("Manually marked watches can have no recorded time. In-progress resume positions from this app remain on this device.", color = Muted, style = MaterialTheme.typography.bodySmall)

@@ -36,15 +36,12 @@ class XpopUiTest {
         performKeyInput { pressKey(Key.DirectionCenter) }
     }
 
-    @Test fun balanceShowsAccountBreakdownAndRefresh() {
-        var refreshed = false
-        app.setContent { JumpflixTheme { XpopPanel(XpopState("qa", XpopSummary(2, 3, 4, 7)), true) { refreshed = true } } }
+    @Test fun balanceShowsAccountBreakdownWithoutAnotherRefreshButton() {
+        app.setContent { JumpflixTheme { XpopPanel(XpopState("qa", XpopSummary(2, 3, 4, 7))) } }
         app.onNodeWithText("225 XPOP").assertExists()
-        app.onNodeWithText("Approved contribution units · 7").assertExists()
+        app.onNodeWithText("Archive changes · 7").assertExists()
         app.onNodeWithText("70 XPOP").assertExists()
-        app.onNodeWithText("Refresh XPOP").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
-        app.onNodeWithText("Refresh XPOP").performKeyInput { pressKey(Key.DirectionCenter) }
-        app.runOnIdle { assertTrue(refreshed) }
+        app.onNodeWithText("Refresh XPOP").assertDoesNotExist()
         app.onRoot().captureToImage().asAndroidBitmap().let { bitmap ->
             File(context.cacheDir, "xpop-panel-qa.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
@@ -74,7 +71,7 @@ class XpopUiTest {
         app.setContent { JumpflixTheme {
             Column {
                 MediaAccountControls(item, MediaAccountState(), false, false, {}, {}, {}, {}, {})
-                XpopPanel(XpopState(error = "Could not sync XPOP."), false) {}
+                XpopPanel(XpopState(error = "Could not sync XPOP."))
             }
         } }
         app.onNodeWithText("Sign in").assertExists()

@@ -3,6 +3,11 @@
 A native Kotlin/Jetpack Compose client for the JUMPFLIX parkour film archive.
 One APK adapts to phone touch input or Android TV / Google TV remote navigation.
 
+The current UI uses a compact branded phone masthead, portrait browse cards,
+wide featured artwork, and shared primary/secondary controls. Landscape phones
+use a side rail; TV keeps labeled remote navigation. Account and stats refresh
+with a pull gesture, TV Up at the top, or an accessibility action.
+
 The visual reference is [Nuvio](https://github.com/NuvioMedia/NuvioTV): cinematic
 artwork, a large featured film, horizontal browsing rows, dark surfaces, and clear
 remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
@@ -61,7 +66,7 @@ website. Saved titles and in-progress resume positions remain device-local.
 ## XPOP
 
 The Account screen displays the current total and its watching, rating, review,
-and approved-contribution breakdown. The header links to that total. Scores use
+and approved-contribution breakdown. The phone header links to that total. Scores use
 the same weights as the website: 5 per watched item, 15 per rating, 25 per review,
 and 10 per approved contribution unit (`xp_units`, rather than suggestion count).
 Contributions submitted through the website are included; native suggestion forms

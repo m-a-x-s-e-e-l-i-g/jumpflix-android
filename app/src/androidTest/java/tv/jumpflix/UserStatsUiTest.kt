@@ -102,10 +102,14 @@ class UserStatsUiTest {
     }
     @Test fun accountEntryReturnsOnBackAndResetsWhenAccountChanges() {
         val account = mutableStateOf(AccountState(profile = AccountProfile("fixture-a", "viewer@example.test", "Viewer", setOf("google"))))
-        app.setContent { JumpflixTheme { AccountScreen(account.value, false, { _, _ -> }, {}, {}, {}, {}) } }
+        val navigationVersion = mutableStateOf(0)
+        app.setContent { JumpflixTheme { AccountScreen(account.value, false, { _, _ -> }, {}, {}, {}, {}, navigationVersion = navigationVersion.value) } }
         app.onNodeWithText("Your stats").performScrollTo().performClick()
         app.onNodeWithText("Back to account").performClick()
         app.onNodeWithText("Google connected").assertExists()
+        app.onNodeWithText("Your stats").performScrollTo().performClick()
+        app.runOnIdle { navigationVersion.value++ }
+        app.onNodeWithText("Back to account").assertDoesNotExist()
         app.onNodeWithText("Your stats").performScrollTo().performClick()
         app.runOnIdle { account.value = AccountState(profile = AccountProfile("fixture-b", "second@example.test", "Second", setOf("google"))) }
         app.onNodeWithText("Welcome back, Second").assertExists()

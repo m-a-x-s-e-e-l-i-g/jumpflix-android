@@ -210,3 +210,27 @@ screenshots remain in ignored local build/artifact directories.
   accessibility retry, absent map navigation, and existing native playback checks.
 - The phone disconnected after the alpha 7 check. Alpha 8 is built and tested on
   the emulator; installation and physical pull-gesture validation are pending.
+
+## Alpha 9 general UI refinement
+
+- Added a stable compact phone masthead with the original popcorn character and
+  wordmark. XPOP loading no longer inserts a separate row above page content.
+- Unified warm dark colors, typography, primary/secondary button hierarchy, and
+  48dp controls. Restored the JUMPFLIX red family; the primary text/button color
+  pair measures 4.92:1, and muted text/background measures 9.51:1.
+- Featured/detail backdrops use public wide YouTube artwork when available and
+  fall back to the supplied poster. Browse cards remain 2:3 portraits. Details
+  pair a portrait poster with the title, metadata, and clear viewing actions.
+- Search has quieter horizontally scrollable filters; the account page groups
+  identity, connection status, stats, and XPOP. Account data now uses pull-to-
+  refresh instead of another manual refresh button. Stats use a full-width
+  watched summary and paired supporting metrics on narrow screens.
+- Added labeled TV navigation and a landscape phone rail. Reselecting Account
+  returns from nested stats to the account root. Native map removal is preserved.
+- Build, lint, all 36 JVM tests, and 19 emulator checks pass. Checks include
+  account pull refresh without starting authentication, nested account navigation,
+  TV focus, search/save/library, ratings/reviews, stats gestures, and HLS playback.
+- Phone portrait/landscape and TV layouts were visually checked on the emulator.
+  Screenshots and UI fixtures are in the ignored artifacts/cache directories.
+  The user deferred phone installation/testing until later; no alpha 9 physical
+  device validation is claimed.
