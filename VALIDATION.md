@@ -161,3 +161,26 @@ screenshots remain in ignored local build/artifact directories.
   a physical phone: only the TV emulator is connected. Live user totals/awards,
   account changes and offline recovery still require signed-in physical-device
   testing; no real Android TV hardware was available.
+
+## User stats follow-up
+
+- Account → Your stats adds watched totals and film/series/episode breakdown,
+  saved playback time, archive progress, average rating and 1–10 distribution,
+  contribution statuses, paginated rated titles, and the latest 20 reviews.
+- Stats use the current signed-in account through the shared encrypted-session
+  repository. Account changes and leaving the screen clear its loaded snapshot;
+  failed refreshes retain only the same account's previous snapshot with an error.
+- Time is labeled as stored playback progress, with an explicit note about manual
+  watches and device-local in-progress positions. It is not measured session time.
+- Seven new JVM tests pass for account-scoped read requests, paginated ratings and
+  contributions, review metadata, empty profiles, failed requests, time formatting,
+  and bounded archive progress. The full current JVM suite also passes.
+- Four stats UI checks exercise TV charts and rating pagination, phone-width empty
+  and refresh states, error handling, Account navigation, Back, account switching,
+  and sign-out. Account/XPOP UI regression checks also pass on the TV emulator.
+- All three existing stats RPCs returned 200 for a nonexistent fixture UUID in
+  read-only live probes; the overview reported not found, the distribution was
+  empty counts, and the rated list was empty. No real user's stats were altered.
+- Build and Android lint pass. Phone/TV stats layouts use emulator fixture data;
+  a live signed-in physical-device stats round trip remains unverified. The phone
+  is not currently connected to ADB. Existing map work in the checkout is separate.

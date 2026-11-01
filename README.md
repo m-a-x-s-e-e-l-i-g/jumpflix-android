@@ -100,6 +100,19 @@ explanation and an official-provider fallback. Owner restrictions are not bypass
 On 2026-11-01, `Balancing Organisms` (223802198) returned HTTP 403 / `PrivacyError`
 from Vimeo even outside this app. Other Vimeo titles can remain playable.
 
+## User stats
+
+Choose **Account → Your stats** after signing in. The screen shows the shared
+XPOP total, watched film/series/episode entries, saved playback time, archive
+progress, average rating and rating distribution, contribution status counts,
+paginated rated titles, and the latest 20 reviews. Title links open JUMPFLIX.
+
+Stats read the website's existing account RPCs and owner-scoped tables. Failed
+refreshes keep the last loaded account snapshot and display an error; changing
+accounts clears it. No backend deployment or schema changes are required.
+Saved playback time is the sum of stored account positions, which may omit time
+for manually marked watches. In-progress resume positions remain device-local.
+
 ## Custom playback controls
 
 The website's old player used Vidstack custom controls with official YouTube and

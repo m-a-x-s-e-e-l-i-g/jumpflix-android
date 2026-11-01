@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -22,6 +23,12 @@ import tv.jumpflix.xpop.XpopState
 @Composable
 internal fun AccountScreen(state: AccountState, tv: Boolean, signIn: (String, String) -> Unit, signOut: () -> Unit, retry: () -> Unit, google: () -> Unit, cancelGoogle: () -> Unit, xpop: XpopState = XpopState(), refreshXpop: () -> Unit = {}) {
     val context = LocalContext.current
+    var showStats by rememberSaveable(state.profile?.id) { mutableStateOf(false) }
+    val statsOwner = state.profile?.id
+    if (showStats && statsOwner != null) {
+        UserStatsScreen(statsOwner, tv) { showStats = false; refreshXpop() }
+        return
+    }
     var email by remember { mutableStateOf("") }
     // Password state is intentionally neither saveable nor persisted.
     var password by remember { mutableStateOf("") }
@@ -43,6 +50,7 @@ internal fun AccountScreen(state: AccountState, tv: Boolean, signIn: (String, St
                 item { Text("Connect Google to sign in to this same JUMPFLIX account next time.", color = Muted) }
                 item { AccountButton("Connect Google account", tv, !state.loading && !state.awaitingGoogle, google) }
             }
+            item { AccountButton("Your stats", tv, !state.loading) { showStats = true } }
             item { XpopPanel(xpop, tv, refreshXpop) }
             item { Text("Completed watches, ratings, reviews, and XPOP use your website account. Saved titles and resume positions are still stored on this device.", color = Muted) }
             item { AccountButton("Sign out", tv, !state.loading && !state.awaitingGoogle, signOut) }
