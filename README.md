@@ -24,10 +24,13 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - Email/password sign-in to the existing JUMPFLIX account service, encrypted session
   persistence with Android Keystore, refresh on restore, and device-local sign-out.
 - Google sign-in through the system browser, with a one-time PKCE return to the app.
+- Shared account XPOP total and breakdown, with the website's popcorn mark and reward notice.
+- Automatic watched rewards at 85% playback, manual movie/episode watched actions,
+  and signed-in ratings and public reviews using the existing website account rows.
 - A dated real catalog snapshot for browsing when refresh is unavailable.
 - No private API tokens, service-role keys, or user sessions are bundled.
 
-Cross-device history/list sync, ratings/reviews, maps, casting, notifications,
+Full cross-device resume/list sync, maps, casting, notifications,
 offline video downloads, and iOS/tvOS builds are outside this first alpha.
 
 ## Accounts
@@ -52,8 +55,35 @@ tv.jumpflix.android://auth/callback
 This entry was added to the existing project's auth redirect allowlist on
 2026-11-01; the website URL and Google provider configuration were preserved.
 For another Supabase deployment, add that exact URI to Auth → URL Configuration.
-Signing in does not yet synchronize the app's device-local saved list or playback
-progress with website history.
+Completed watches, ratings, reviews, and XPOP use the same account data as the
+website. Saved titles and in-progress resume positions remain device-local.
+
+## XPOP
+
+The Account screen displays the current total and its watching, rating, review,
+and approved-contribution breakdown. The header links to that total. Scores use
+the same weights as the website: 5 per watched item, 15 per rating, 25 per review,
+and 10 per approved contribution unit (`xp_units`, rather than suggestion count).
+Contributions submitted through the website are included; native suggestion forms
+are not part of this build.
+
+Native and phone-provider playback queue a completed watch at 85%, matching the
+website threshold and provider/episode keys. The client writes through the existing
+account-owned API and unique keys. Replaying an already-watched entry or editing a
+rating/review does not add another scoring row. A legacy base movie watch is also
+recognized. The popcorn reward notice follows a successful account update.
+
+Pending completed watches survive restarts and remain bound to the account that
+watched them. They retry on refresh/foreground restore; another account cannot claim
+them. Anonymous viewing is never imported as earned XPOP after sign-in. Failed sync
+keeps the previous total or an unavailable state, rather than inventing a zero score.
+TV provider apps cannot report completion, so use **Mark watched** on the movie or
+episode after viewing. Opening a provider app alone earns no points.
+
+Open **Rate & review** in a title's activity section to choose a 1–10 rating or
+explicitly post/edit a public review (up to 2,000 characters). These actions require
+sign-in and a loaded account state. They use the existing RLS-protected tables;
+the APK contains no service credentials. There are no schema/configuration changes.
 
 When signed in, the Account tab shows **Google connected** for a linked identity.
 Otherwise **Connect Google account** uses the authenticated identity-linking flow

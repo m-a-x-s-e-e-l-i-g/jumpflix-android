@@ -9,7 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-class AccountRepository(context: Context) {
+class AccountRepository private constructor(context: Context) {
     private val store = SessionStore(context)
     private val mutex = Mutex()
     private val api: AuthApi
@@ -98,6 +98,30 @@ class AccountRepository(context: Context) {
             }
             store.clear()
             session = null
+        }
+    }
+
+    internal suspend fun signedInUserId(): String? = withContext(Dispatchers.IO) { mutex.withLock { store.load()?.profile?.id } }
+
+    /** Serialize token rotation and bind every data request to its initiating account. */
+    internal suspend fun <T> authenticated(expectedUserId: String, action: (AuthSession) -> T): T = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            var current = store.load() ?: throw IOException("Sign in to sync with JUMPFLIX.")
+            if (current.profile.id != expectedUserId) throw IOException("The signed-in account changed. Please try again.")
+            if (current.expiresAt <= System.currentTimeMillis() / 1000 + 60) {
+                current = api.refresh(current.refreshToken)
+                check(current.profile.id == expectedUserId) { "The account session changed." }
+                store.save(current)
+            }
+            session = current
+            action(current)
+        }
+    }
+
+    companion object {
+        @Volatile private var instance: AccountRepository? = null
+        fun get(context: Context): AccountRepository = instance ?: synchronized(this) {
+            instance ?: AccountRepository(context.applicationContext).also { instance = it }
         }
     }
 }

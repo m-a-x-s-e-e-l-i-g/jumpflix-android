@@ -131,3 +131,33 @@ screenshots remain in ignored local build/artifact directories.
   update; new controls, fullscreen/rotation, live provider controls, audio, and
   real TV playback still need physical-device testing. Prior Vimeo playback
   evidence above applies to the previous player UI.
+
+## Alpha 6 XPOP and account activity
+
+- Account and header totals use the existing website's stats RPC and approved
+  suggestion XP units. Weights match `jumpflix.tv/src/lib/xp.ts`: 5 watching,
+  15 rating, 25 reviewing, and 10 per contribution unit. No new points ledger,
+  schema, RLS policy, or production auth configuration was created.
+- Watched rewards begin at 85%. Movie/provider and episode keys match the website,
+  with duplicate and legacy-base checks. Completed watches are queued by account,
+  survive process recreation, and retry on foreground restore or manual refresh.
+  Guest history is not credited to a later signed-in account. Saved lists and
+  in-progress resume positions are still local.
+- Added explicit manual watched actions for movies/episodes, 1–10 ratings, and
+  public review creation/editing. Edits upsert the same unique account/media row;
+  award notices follow successful account updates, not optimistic local increments.
+- Twenty-nine JVM tests pass. The ten new checks cover XP weights, completion
+  boundary, website-compatible keys, account-scoped requests, contribution-unit
+  pagination, duplicate/legacy watches, review bounds, and sanitized API failures.
+- Fourteen emulator checks pass, covering account UI, browsing, custom player, XPOP balance/refresh,
+  rating/review controls, guest/error states, phone-width touch controls, and
+  account-separated persisted offline completions. Rating/review UI tests use
+  callbacks with fixture data; no real user's review or rating was posted.
+- Live read-only checks confirmed the current table constraints and owner RLS.
+  The stats RPC returned 200 / not-found for a nonexistent fixture UUID, and the
+  approved-contribution endpoint returned 200 / an empty anonymous result. This
+  confirms endpoint availability, not a live signed-in reward round trip.
+- Build and Android lint pass. The updated alpha 6 APK has not been installed on
+  a physical phone: only the TV emulator is connected. Live user totals/awards,
+  account changes and offline recovery still require signed-in physical-device
+  testing; no real Android TV hardware was available.

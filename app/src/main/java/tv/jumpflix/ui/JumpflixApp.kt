@@ -56,6 +56,7 @@ import tv.jumpflix.CatalogState
 import tv.jumpflix.CatalogViewModel
 import tv.jumpflix.data.*
 import tv.jumpflix.player.PlaybackActivity
+import tv.jumpflix.xpop.*
 import tv.jumpflix.ui.nuvio.LightweightCard
 
 private enum class Destination(val title: String, val icon: ImageVector) {
@@ -67,10 +68,16 @@ private enum class Destination(val title: String, val icon: ImageVector) {
 fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: String?) {
     val state by model.state.collectAsStateWithLifecycle()
     val account by model.account.collectAsStateWithLifecycle()
+    val xpop by model.xpop.collectAsStateWithLifecycle()
+    val interaction by model.interaction.collectAsStateWithLifecycle()
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var query by rememberSaveable { mutableStateOf("") }
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    LaunchedEffect(state.selected?.id, account.profile?.id, xpop.summary?.watching) { state.selected?.let(model::loadInteractions) }
+    LaunchedEffect(xpop.reward?.id) {
+        xpop.reward?.id?.let { id -> kotlinx.coroutines.delay(3000); model.dismissXpop(id) }
+    }
     LaunchedEffect(account.googleUrl) {
         account.googleUrl?.let { url ->
             try { CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, Uri.parse(url)) }
@@ -109,19 +116,28 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
+                if (account.profile != null && xpop.ownerId == account.profile?.id && xpop.summary != null) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                        TextButton({ model.closeDetail(); destination = Destination.Account }) { XpopMark("${java.text.NumberFormat.getIntegerInstance().format(xpop.summary!!.total)} XPOP") }
+                    }
+                }
                 Box(Modifier.weight(1f)) {
                     val selected = state.selected
                     if (selected != null) {
-                        Details(selected, state, television, model::closeDetail, { model.toggleSaved(selected.id) }) { source, key, title ->
+                        Details(selected, state, television, model::closeDetail, { model.toggleSaved(selected.id) },
+                            interaction.takeIf { it.itemId == selected.id && it.ownerId == account.profile?.id } ?: MediaAccountState(), account.profile != null,
+                            { model.loadInteractions(selected) }, { model.closeDetail(); destination = Destination.Account },
+                            { model.rate(selected, it) }, { model.review(selected, it) }, { model.markWatched(selected, it) }) { source, key, title ->
                             PlaybackActivity.open(context, selected.id, key, title, source)
                         }
                     } else when (destination) {
                         Destination.Home -> Home(state, television, model::select, model::refresh)
                         Destination.Search -> Search(state.catalog?.items.orEmpty(), query, { query = it }, television, model::select)
                         Destination.Library -> Library(state, television, model::select)
-                        Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle)
+                        Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop)
                         Destination.About -> About(state, television, model::refresh)
                     }
+                    xpop.reward?.takeIf { xpop.ownerId == account.profile?.id }?.let { XpopNotice(it, Modifier.align(Alignment.TopCenter).padding(16.dp)) }
                 }
                 if (!television) {
                     NavigationBar(containerColor = Background, tonalElevation = 0.dp) {
@@ -292,7 +308,9 @@ private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: () -> Unit, toggleSaved: () -> Unit, play: (PlaybackSource, String, String) -> Unit) {
+private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: () -> Unit, toggleSaved: () -> Unit,
+    account: MediaAccountState, signedIn: Boolean, retry: () -> Unit, signIn: () -> Unit, rate: (Int) -> Unit, review: (String) -> Unit,
+    markWatched: (Episode?) -> Unit, play: (PlaybackSource, String, String) -> Unit) {
     val context = LocalContext.current
     val focusRequester = remember(item.id) { FocusRequester() }
     LaunchedEffect(item.id) { if (tv) focusRequester.requestFocus() }
@@ -325,13 +343,19 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 state.detailError?.let { Text(it, color = Muted) }
             }
         }
+        item { MediaAccountControls(item, account, signedIn, tv, retry, signIn, rate, review) { markWatched(null) } }
         item.seasons.forEach { season ->
             item(key = "season-${season.number}") { Text(season.title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(24.dp)) }
             items(season.episodes, key = { "${season.number}:${it.id}" }) { episode ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text(episode.position.toString().padStart(2, '0'), color = Muted, fontSize = 20.sp)
-                    Text(episode.title, color = Ink, modifier = Modifier.weight(1f))
-                    episode.playback?.let { source -> Action("Play", true, tv) { play(source, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title) } }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${episode.position.toString().padStart(2, '0')}  ${episode.title}", color = Ink)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        episode.playback?.let { source -> Action("Play", true, tv) { play(source, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title) } }
+                        if (signedIn && account.loaded) {
+                            val watched = watchKey(item.id, null, episode.id) in account.watched
+                            XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !account.busy && !watched) { markWatched(episode) }
+                        }
+                    }
                 }
             }
         }
@@ -348,7 +372,7 @@ private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
         item { Text("${state.catalog?.items?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }
         item { Action(if (state.loading) "Refreshing…" else "Refresh catalog", true, tv, onClick = refresh) }
         state.error?.let { error -> item { Text(error, color = Muted) } }
-        item { Text("Sign in to your existing JUMPFLIX account in the Account tab. Saved titles and watch progress stay on this device in this build; account history sync, ratings, reviews, maps, and casting are still to come.", color = Muted) }
+        item { Text("Sign in to earn XPOP, rate titles, and post reviews with your existing JUMPFLIX account. Completed watches sync to the website. Saved titles and resume positions stay on this device; maps and casting are still to come.", color = Muted) }
         item { HorizontalDivider(color = Surface) }
         item { Text("Open source & acknowledgments", color = Ink, fontWeight = FontWeight.Bold) }
         item { Text("This client is licensed under GNU GPL v3. Its TV focus card is adapted from NuvioTV by the Nuvio contributors. The interface follows Nuvio’s cinema-first browsing, with JUMPFLIX branding and catalog. Noto Sans is licensed under the SIL Open Font License. Gradle wrapper: Apache License 2.0.", color = Muted) }

@@ -14,6 +14,7 @@ import tv.jumpflix.auth.AccountProfile
 import tv.jumpflix.auth.AccountRepository
 import tv.jumpflix.auth.AuthFailure
 import tv.jumpflix.auth.GoogleOAuth
+import tv.jumpflix.xpop.*
 
 data class AccountState(val profile: AccountProfile? = null, val loading: Boolean = false, val error: String? = null,
     val googleUrl: String? = null, val awaitingGoogle: Boolean = false, val oauthResult: Int = 0)
@@ -33,7 +34,12 @@ data class CatalogState(
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CatalogRepository(application)
     private val library = LibraryStore(application)
-    private val accounts = AccountRepository(application)
+    private val accounts = AccountRepository.get(application)
+    private val rewards = XpopRepository.get(application)
+    val xpop = rewards.state
+    private val interactionMutable = MutableStateFlow(MediaAccountState())
+    val interaction = interactionMutable.asStateFlow()
+    private var interactionGeneration = 0
     private val accountMutable = MutableStateFlow(AccountState())
     val account = accountMutable.asStateFlow()
     private var authGeneration = 0
@@ -88,7 +94,10 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val profile = accounts.restore()
-                if (generation == authGeneration) accountMutable.update { it.copy(profile = profile, loading = false, error = null) }
+                if (generation == authGeneration) {
+                    accountMutable.update { it.copy(profile = profile, loading = false, error = null) }
+                    accountReady(profile)
+                }
             }
             catch (error: CancellationException) { throw error }
             catch (_: Exception) { if (generation == authGeneration) accountMutable.update { it.copy(loading = false, error = "Could not restore your session. Please sign in again or retry when connected.") } }
@@ -103,7 +112,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         }
         accountMutable.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            try { accountMutable.value = AccountState(profile = accounts.signIn(email, password)) }
+            try { accountMutable.value = AccountState(profile = accounts.signIn(email, password)); accountReady(accountMutable.value.profile) }
             catch (error: CancellationException) { throw error }
             catch (error: Exception) { accountMutable.update { it.copy(loading = false, error = if (error is AuthFailure) error.message else "Could not reach the account service. Check your connection and try again.") } }
         }
@@ -113,7 +122,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         if (accountMutable.value.loading) return
         accountMutable.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            try { accounts.signOut(); accountMutable.value = AccountState() }
+            try { accounts.signOut(); accountMutable.value = AccountState(); accountReady(null) }
             catch (error: CancellationException) { throw error }
             catch (_: Exception) { accountMutable.update { it.copy(loading = false, error = "Could not sign out securely. Check your connection and try again.") } }
         }
@@ -145,7 +154,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val profile = accounts.completeGoogle(uri)
-                if (generation == authGeneration) accountMutable.update { it.copy(profile = profile, loading = false) }
+                if (generation == authGeneration) { accountMutable.update { it.copy(profile = profile, loading = false) }; accountReady(profile) }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) {
                 if (generation == authGeneration) accountMutable.update { it.copy(loading = false, error = when (error) {
@@ -154,5 +163,54 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
                 }) }
             }
         }
+    }
+
+    private fun accountReady(profile: AccountProfile?) {
+        rewards.bind(profile?.id)
+        if (profile == null) { interactionGeneration++; interactionMutable.value = MediaAccountState(); return }
+        refreshXpop()
+        mutable.value.selected?.let(::loadInteractions)
+    }
+    fun refreshXpop() {
+        val owner = accountMutable.value.profile?.id ?: return
+        viewModelScope.launch { rewards.refresh(owner) }
+    }
+    fun dismissXpop(id: Long) { rewards.dismissReward(id) }
+    fun loadInteractions(item: CatalogItem) {
+        val owner = accountMutable.value.profile?.id ?: run { interactionMutable.value = MediaAccountState(); return }
+        if (interactionMutable.value.busy && interactionMutable.value.itemId == item.id && interactionMutable.value.ownerId == owner) return
+        val generation = ++interactionGeneration
+        interactionMutable.value = MediaAccountState(ownerId = owner, itemId = item.id)
+        viewModelScope.launch {
+            try {
+                val result = rewards.details(owner, item.id)
+                if (generation == interactionGeneration && accountMutable.value.profile?.id == owner) interactionMutable.value = result
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) {
+                if (generation == interactionGeneration && accountMutable.value.profile?.id == owner) interactionMutable.update { it.copy(error = "Could not load your rating and watched status. Please retry.") }
+            }
+        }
+    }
+    private fun changeInteraction(item: CatalogItem, action: suspend (String) -> MediaAccountState) {
+        val owner = accountMutable.value.profile?.id ?: return
+        val current = interactionMutable.value
+        if (current.itemId != item.id || !current.loaded || current.busy || current.ownerId != owner) return
+        val generation = ++interactionGeneration
+        interactionMutable.value = current.copy(busy = true, error = null)
+        viewModelScope.launch {
+            try {
+                val result = action(owner)
+                if (generation == interactionGeneration && accountMutable.value.profile?.id == owner) interactionMutable.value = result
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) {
+                if (generation == interactionGeneration && accountMutable.value.profile?.id == owner) interactionMutable.update { it.copy(busy = false, error = "Could not confirm this change. Retry to check the saved state.") }
+            }
+        }
+    }
+    fun rate(item: CatalogItem, rating: Int?) = changeInteraction(item) { rewards.rate(it, item.id, rating) }
+    fun review(item: CatalogItem, body: String?) = changeInteraction(item) { rewards.review(it, item.id, body) }
+    fun markWatched(item: CatalogItem, episode: Episode? = null) = changeInteraction(item) { owner ->
+        val key = watchKey(item.id, item.playback, episode?.id)
+        rewards.markWatched(owner, item.id, WatchedItem(key, if (episode == null) "movie" else "episode"))
     }
 }

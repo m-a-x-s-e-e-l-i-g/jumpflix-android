@@ -27,6 +27,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -45,6 +47,9 @@ import tv.jumpflix.R
 import tv.jumpflix.data.LibraryStore
 import tv.jumpflix.data.PlaybackSource
 import tv.jumpflix.ui.openExternal
+import tv.jumpflix.xpop.XpopRepository
+import tv.jumpflix.xpop.WatchedItem
+import tv.jumpflix.xpop.watchKey
 
 @OptIn(UnstableApi::class)
 class PlaybackActivity : ComponentActivity() {
@@ -65,6 +70,9 @@ class PlaybackActivity : ComponentActivity() {
     private var television = false
     private var lastSave = 0L
     private var snapshot = PlaybackSnapshot()
+    private var xpopOwner: String? = null
+    private var completionQueued = false
+    private var accountWatchKey = ""
     private val handler = Handler(Looper.getMainLooper())
     private val hideChrome = Runnable { if (player?.isPlaying == true) chrome.visibility = View.GONE }
     private val poll = object : Runnable {
@@ -78,6 +86,8 @@ class PlaybackActivity : ComponentActivity() {
         playbackKey = intent.getStringExtra("key").orEmpty()
         filmTitle = intent.getStringExtra("title").orEmpty()
         library = LibraryStore(this)
+        accountWatchKey = intent.getStringExtra("watchKey").orEmpty()
+        lifecycleScope.launch { xpopOwner = XpopRepository.get(this@PlaybackActivity).playbackOwner() }
         television = (getSystemService(UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
@@ -245,6 +255,12 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun recordProgress() {
         if (snapshot.position > 0 && snapshot.duration > 0) library.record(playbackKey, itemId, filmTitle, snapshot.position, snapshot.duration)
+        val owner = xpopOwner ?: return
+        if (completionQueued || accountWatchKey.isBlank()) return
+        if (!accountWatchKey.startsWith("movie:") && !accountWatchKey.contains(":ep:")) return
+        val completed = WatchedItem.completed(accountWatchKey, if (accountWatchKey.contains(":ep:")) "episode" else "movie", snapshot.position, snapshot.duration) ?: return
+        completionQueued = true
+        XpopRepository.get(this).completed(owner, completed)
     }
 
     private fun adaptPlayerLayout() {
@@ -268,7 +284,8 @@ class PlaybackActivity : ComponentActivity() {
             // Some TVs have no WebView; their provider apps remain the supported route.
             if (source.kind == "external" || (tv && source.kind in setOf("youtube", "vimeo"))) { openExternal(context, source.url); return }
             context.startActivity(Intent(context, PlaybackActivity::class.java).putExtra("itemId", itemId).putExtra("key", key)
-                .putExtra("title", title).putExtra("kind", source.kind).putExtra("url", source.url))
+                .putExtra("title", title).putExtra("kind", source.kind).putExtra("url", source.url)
+                .putExtra("watchKey", watchKey(itemId, source, if (key.contains(":ep:")) key.substringAfterLast(":ep:") else null)))
         }
     }
 }

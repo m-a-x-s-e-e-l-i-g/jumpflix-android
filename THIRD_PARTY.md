@@ -36,6 +36,8 @@ analytics, update service, and credentials are not included.
   assets: `jumpflix.png`, `sad-jumpflix.webp`, and `searching-jumpflix-logo.webp`.
 - The adaptive icon places the original character on the existing brand-red background.
 - The wordmark uses the same Bebas Neue family as the website.
+- The XPOP kernel vector preserves the paths and colors from the owner's
+  `jumpflix.tv/static/images/popcorn.svg`; the XP lettering follows `XPopMark.svelte`.
 - Font source: https://github.com/google/fonts/tree/main/ofl/bebasneue
 - SIL Open Font License 1.1 in `third-party/BebasNeue-OFL.txt` and app license assets.
 - Branding/artwork remains the project owner's material; the native code license
