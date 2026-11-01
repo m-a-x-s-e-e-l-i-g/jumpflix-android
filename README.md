@@ -17,6 +17,8 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - Home, discovery rows, title/creator/athlete search, and film/series details.
 - 2:3 portrait posters throughout home rows, search, and My list on phone and TV.
 - Device-local saved titles and resume progress, including separate episode keys.
+- Native filmmaker/creator and athlete profiles, opened from film credits or
+  **Search → People**, with role filters, filmographies, and existing Instagram links.
 - Approved spot chapters and credited songs on film details, with per-episode spots
   for series. Timestamp actions start playback at a cue; links open parkour.spot
   and Spotify. The custom player follows the current spot/song and has a credits list.
@@ -122,6 +124,22 @@ refreshes keep the last loaded account snapshot and display an error; changing
 accounts clears it. No backend deployment or schema changes are required.
 Saved playback time is the sum of stored account positions, which may omit time
 for manually marked watches. In-progress resume positions remain device-local.
+
+## Creator and athlete profiles
+
+Choose a name under **Created by** or **Featuring** in a film/series, or switch
+Search to **People**. Profiles combine credited names using the website's canonical
+normalization, show creator/athlete roles and unique title counts, and filter the
+filmography by **All credits**, **Created by**, or **Featuring**. Related posters
+open native film details. Back returns through film/profile history to the original
+film or search; the people query and profile filter are retained.
+
+Filmographies work from the saved catalog without an account. Public Instagram
+handles come from the existing `person_profiles` read policy and are cached for
+ten minutes. A failed link refresh retains saved links and leaves the filmography
+available. No biography, photo, or contact information is inferred. The profile
+can also open its canonical JUMPFLIX website page. Music artist profiles are outside
+this feature, as requested. No website deployment or database changes are required.
 
 ## Spots and songs
 

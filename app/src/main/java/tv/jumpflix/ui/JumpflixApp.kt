@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +72,8 @@ private enum class Destination(val title: String, val icon: ImageVector) {
     Library("My list", Icons.Outlined.Bookmarks), Account("Account", Icons.Outlined.PersonOutline), About("About", Icons.Outlined.Info),
 }
 
+private val BrowseTrailSaver = listSaver<BrowseTrail, String>(save = { it.routes }, restore = { BrowseTrail(it) })
+
 @Composable
 fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: String?) {
     val state by model.state.collectAsStateWithLifecycle()
@@ -76,16 +81,35 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     val xpop by model.xpop.collectAsStateWithLifecycle()
     val interaction by model.interaction.collectAsStateWithLifecycle()
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
+    var trail by rememberSaveable(stateSaver = BrowseTrailSaver) { mutableStateOf(BrowseTrail()) }
+    val profileStates = rememberSaveableStateHolder()
+    val people = remember(state.catalog?.items) { buildPeopleIndex(state.catalog?.items.orEmpty()) }
     var accountNavigationVersion by rememberSaveable { mutableIntStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
+    var peopleMode by rememberSaveable { mutableStateOf(false) }
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val phoneRail = !television && configuration.screenWidthDp >= 600 && configuration.screenWidthDp > configuration.screenHeightDp
     fun navigate(entry: Destination) {
+        trail = BrowseTrail()
         model.closeDetail()
         if (entry == Destination.Account) accountNavigationVersion++
         destination = entry
+    }
+    fun selectFilm(item: CatalogItem) {
+        trail = if (trail.person != null) trail.openFilm(item.id) else BrowseTrail()
+        model.select(item)
+    }
+    fun openProfile(key: String) { trail = trail.openPerson(state.selected?.id, key) }
+    fun browseBack() {
+        if (trail.routes.isEmpty()) { model.closeDetail(); return }
+        trail = trail.back()
+        val film = trail.film
+        if (film != null) {
+            val parent = state.catalog?.items?.firstOrNull { it.id == film }
+            if (parent != null) model.select(parent) else { trail = BrowseTrail(); model.closeDetail() }
+        } else if (trail.routes.isEmpty()) model.closeDetail()
     }
     LaunchedEffect(state.selected?.id, account.profile?.id, xpop.summary?.watching) { state.selected?.let(model::loadInteractions) }
     LaunchedEffect(xpop.reward?.id) {
@@ -99,7 +123,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
         }
     }
     LaunchedEffect(account.oauthResult) {
-        if (account.oauthResult > 0) { model.closeDetail(); destination = Destination.Account }
+        if (account.oauthResult > 0) navigate(Destination.Account)
     }
     LaunchedEffect(state.catalog, initialSlug) {
         if (!deepLinkHandled && initialSlug != null) {
@@ -109,8 +133,8 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
             }
         }
     }
-    BackHandler(state.selected != null || destination != Destination.Home) {
-        if (state.selected != null) model.closeDetail() else destination = Destination.Home
+    BackHandler(trail.routes.isNotEmpty() || state.selected != null || destination != Destination.Home) {
+        if (trail.routes.isNotEmpty() || state.selected != null) browseBack() else destination = Destination.Home
     }
     JumpflixTheme {
         Row(Modifier.fillMaxSize().background(Background).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) {
@@ -144,17 +168,27 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                 if (!television) PhoneMasthead(xpop.summary?.takeIf { xpop.ownerId == account.profile?.id }) { navigate(Destination.Account) }
                 Box(Modifier.weight(1f)) {
                     val selected = state.selected
-                    if (selected != null) {
-                        Details(selected, state, television, model::closeDetail, { model.toggleSaved(selected.id) },
+                    val personKey = trail.person
+                    if (personKey != null) {
+                        val person = people.firstOrNull { it.key == personKey }
+                        if (person != null) profileStates.SaveableStateProvider(person.key) {
+                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::browseBack, ::selectFilm)
+                        }
+                        else Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            AppAction("Back", television, action = ::browseBack)
+                            Text(if (state.loading) "Loading profile…" else "This profile is unavailable in the current catalog.", color = Muted)
+                        }
+                    } else if (selected != null) {
+                        Details(selected, state, television, ::browseBack, { model.toggleSaved(selected.id) },
                             interaction.takeIf { it.itemId == selected.id && it.ownerId == account.profile?.id } ?: MediaAccountState(), account.profile != null,
-                            { model.loadInteractions(selected) }, { model.closeDetail(); destination = Destination.Account },
-                            { model.rate(selected, it) }, { model.review(selected, it) }, { model.markWatched(selected, it) }) { source, key, title ->
+                            { model.loadInteractions(selected) }, { navigate(Destination.Account) },
+                            { model.rate(selected, it) }, { model.review(selected, it) }, { model.markWatched(selected, it) }, ::openProfile) { source, key, title ->
                             PlaybackActivity.open(context, selected.id, key, title, source)
                         }
                     } else when (destination) {
-                        Destination.Home -> Home(state, television, model::select, model::refresh)
-                        Destination.Search -> Search(state.catalog?.items.orEmpty(), query, { query = it }, television, model::select)
-                        Destination.Library -> Library(state, television, model::select)
+                        Destination.Home -> Home(state, television, ::selectFilm, model::refresh)
+                        Destination.Search -> Search(state.catalog?.items.orEmpty(), people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile)
+                        Destination.Library -> Library(state, television, ::selectFilm)
                         Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
                         Destination.About -> About(state, television, model::refresh)
                     }
@@ -285,7 +319,7 @@ private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progre
 }
 
 @Composable
-private fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, onClick: () -> Unit) {
+internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, onClick: () -> Unit) {
     val content: @Composable ColumnScope.() -> Unit = {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Surface)) {
             AsyncImage(item.thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -308,25 +342,44 @@ private fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun Search(all: List<CatalogItem>, query: String, changeQuery: (String) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit) {
+private fun Search(all: List<CatalogItem>, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit) {
     val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
+    val matchingPeople = remember(people, query) { people.filter { it.matches(query) } }
     val results = remember(all, query, filter) { all.filter { it.matches(query) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
-        PageHeading("Find your next film", "Search titles, creators, and athletes.")
-        Spacer(Modifier.height(18.dp))
-        OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
-            shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
-            items(listOf("All", "Films", "Series", "Free")) { name ->
-                if (tv) Action(name, name == filter, true) { filter = name }
-                else FilterChip(selected = name == filter, onClick = { filter = name }, label = { Text(name) }, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = SurfaceRaised, selectedLabelColor = Ink))
+    LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), modifier = Modifier.fillMaxSize().testTag(if (peopleMode) "people-results" else "film-grid"),
+        contentPadding = PaddingValues(24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        item(key = "search-controls", span = { GridItemSpan(maxLineSpan) }) {
+            Column {
+                PageHeading(if (peopleMode) "Creators & athletes" else "Find your next film", "Search films, creators, and athletes.")
+                Spacer(Modifier.height(18.dp))
+                OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
+                    shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
+                    PersonFilter("Films & series", !peopleMode, tv) { changePeopleMode(false) }
+                    PersonFilter("People", peopleMode, tv) { changePeopleMode(true) }
+                }
+                if (!peopleMode) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
+                        items(listOf("All", "Films", "Series", "Free")) { name ->
+                            if (tv) Action(name, name == filter, true) { filter = name }
+                            else FilterChip(selected = name == filter, onClick = { filter = name }, label = { Text(name) }, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(10.dp),
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = SurfaceRaised, selectedLabelColor = Ink))
+                        }
+                    }
+                }
+                Text(if (peopleMode) "${matchingPeople.size} people" else "${results.size} titles", color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = if (peopleMode) 14.dp else 0.dp))
             }
         }
-        Text("${results.size} titles", color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 14.dp))
-        if (results.isEmpty()) EmptyState("No films found", "Try a different title, creator, or athlete.")
-        else FilmGrid(results, tv, select)
+        if (peopleMode) {
+            gridItems(matchingPeople, key = { "person:${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { person -> PersonSearchResult(person, tv, profile) }
+        } else gridItems(results, key = { it.id }) { film -> FilmCard(film, tv) { select(film) } }
+        if ((peopleMode && matchingPeople.isEmpty()) || (!peopleMode && results.isEmpty())) item(span = { GridItemSpan(maxLineSpan) }) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (peopleMode) "No people found" else "No films found", color = Ink, style = MaterialTheme.typography.titleLarge)
+                Text(if (peopleMode) "Try a creator or athlete's name." else "Try a different title, creator, or athlete.", color = Muted)
+            }
+        }
     }
 }
 
@@ -352,7 +405,7 @@ private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem
 @Composable
 private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: () -> Unit, toggleSaved: () -> Unit,
     account: MediaAccountState, signedIn: Boolean, retry: () -> Unit, signIn: () -> Unit, rate: (Int) -> Unit, review: (String) -> Unit,
-    markWatched: (Episode?) -> Unit, play: (PlaybackSource, String, String) -> Unit) {
+    markWatched: (Episode?) -> Unit, profile: (String) -> Unit, play: (PlaybackSource, String, String) -> Unit) {
     val context = LocalContext.current
     val focusRequester = remember(item.id) { FocusRequester() }
     val creditsFocus = remember(item.id) { FocusRequester() }
@@ -392,8 +445,8 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 if (item.paid) Text("This release stays with its official paid provider.", color = Muted, style = MaterialTheme.typography.bodySmall)
                 Text("About this ${if (item.type == "series") "series" else "film"}", color = Ink, style = MaterialTheme.typography.titleMedium)
                 Text(item.description, color = Muted, style = MaterialTheme.typography.bodyLarge)
-                if (item.creators.isNotEmpty()) Text("Created by  ${item.creators.joinToString(", ")}", color = Muted)
-                if (item.starring.isNotEmpty()) Text("Featuring  ${item.starring.joinToString(", ")}", color = Muted)
+                PeopleCredits("Created by", item.creators, tv, profile)
+                PeopleCredits("Featuring", item.starring, tv, profile)
                 if (state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Accent)
                 state.detailError?.let { Text(it, color = Muted) }
             }

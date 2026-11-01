@@ -267,3 +267,32 @@ screenshots remain in ignored local build/artifact directories.
   `artifacts/`. Emulator display settings were restored after phone previews.
 - Phone installation/physical testing remains deferred at the user's request.
   Alpha 10 is built; no physical Android/TV validation is claimed for this change.
+
+## Alpha 11 creator and athlete profiles
+
+- Names under Created by/Featuring open native profiles. Long credit lists show
+  six names initially and can expand. Search now switches between Films & series
+  and People, with accent-insensitive name search and creator/athlete role labels.
+- Profiles combine canonical website name slugs, unique title counts, creator and
+  athlete roles, and filmographies filtered by All credits, Created by, or Featuring.
+  Initials identify people when no portrait is available. No biography/photo is
+  inferred. Profiles are for filmmakers/creators and athletes, as clarified by the
+  user; music artist profiles were not added.
+- Existing public Instagram handles are read without account tokens and cached
+  for ten minutes. Failed refreshes retain saved links; films remain available
+  from the saved catalog. Canonical website profiles can also be opened externally.
+- Film/profile navigation retains its parent trail, search query/mode, and profile
+  filters. Profile and Search headers scroll with their content so short landscape
+  layouts retain access to results. No map, website, schema, or auth changes.
+- Build, lint (zero errors), 45 JVM tests, and all 30 emulator checks pass. Coverage
+  includes canonical name/role merging, distinct title counts, public request
+  scoping, cached link failures, filmography filters, social-link callbacks, TV
+  focus on first mount, and film/profile/search Back navigation. The opt-in public
+  profile check fetched Chris Cobas's existing Instagram handle without a session.
+- Kevin Franzén's profile was visually checked on a phone layout, including its
+  9 catalog titles and published Instagram link. Resizing to landscape retained
+  the profile and access to the filmography. Lester Castro Nilsson's creator/athlete
+  profile was checked with TV remote input. Screenshots remain under ignored
+  `artifacts/`; the emulator display was restored afterward.
+- Physical phone installation/testing remains deferred at the user's request.
+  No physical Android TV validation is claimed.

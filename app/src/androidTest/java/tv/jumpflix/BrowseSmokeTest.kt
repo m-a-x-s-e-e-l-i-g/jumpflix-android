@@ -56,4 +56,40 @@ class BrowseSmokeTest {
         app.onNode(hasText("Songs", substring = true) and hasClickAction()).assertIsDisplayed()
         app.onNode(hasText("Songs", substring = true) and hasClickAction()).activate()
     }
+
+    @Test fun peopleSearchOpensAthleteFilmographyAndBackReturnsThroughProfile() {
+        awaitHome()
+        app.onAllNodesWithContentDescription("Search").filter(hasClickAction()).onFirst().activate()
+        app.onNode(hasSetTextAction()).performTextInput("kevin franzen")
+        app.onNode(hasSetTextAction()).performImeAction()
+        app.onNode(hasText("People") and hasClickAction()).activate()
+        app.onNodeWithTag("people-results").performScrollToNode(hasContentDescription("Open profile: Kevin Franzén"))
+        app.onNodeWithContentDescription("Open profile: Kevin Franzén").activate()
+        app.onNodeWithText("Filmography").assertExists()
+        app.onNodeWithTag("person-filmography").performScrollToNode(hasContentDescription("KEVIN FRANZÉN"))
+        app.onNode(hasContentDescription("KEVIN FRANZÉN") and hasClickAction()).activate()
+        app.onNodeWithText("Watch film").assertExists()
+        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNodeWithTag("person-filmography").assertExists()
+        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNodeWithTag("people-results").assertExists()
+        app.onNode(hasSetTextAction()).assertTextContains("kevin franzen")
+    }
+
+    @Test fun filmCreditNamesOpenCreatorProfilesAndReturnToTheOriginalFilm() {
+        awaitHome()
+        app.onNodeWithText("Discover film").activate()
+        lateinit var creator: String
+        lateinit var original: String
+        app.runOnIdle {
+            val film = ViewModelProvider(app.activity)[CatalogViewModel::class.java].state.value.selected!!
+            creator = film.creators.first()
+            original = film.title
+        }
+        app.onNodeWithContentDescription("Open profile: $creator").activate()
+        app.onNodeWithText("Filmography").assertExists()
+        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNodeWithText(original).assertExists()
+        app.onNodeWithText("Discover film").assertDoesNotExist()
+    }
 }
