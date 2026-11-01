@@ -19,7 +19,6 @@ data class Person(val key: String, val name: String, val created: Set<String>, v
         created.isNotEmpty() -> "Creator"
         else -> "Athlete"
     }
-    val url: String? get() = key.takeIf { it.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*")) }?.let { "https://www.jumpflix.tv/people/$it" }
     fun matches(query: String): Boolean = query.isBlank() || query.trim().split(Regex("\\s+")).all { word ->
         personKey(name).removePrefix("~").contains(personKey(word).removePrefix("~"))
     }

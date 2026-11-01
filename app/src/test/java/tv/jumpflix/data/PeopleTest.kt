@@ -32,7 +32,6 @@ class PeopleTest {
         assertFalse(kevin.matches("Kevin another"))
         assertEquals("a-and-b", personSlug(" A & B "))
         assertNotEquals(personKey("李明"), personKey("王伟"))
-        assertNull(Person(personKey("李明"), "李明", emptySet(), setOf("movie:1")).url)
     }
 
     @Test fun `bundled athlete and filmmaker credits build real filmographies`() {

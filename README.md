@@ -137,9 +137,13 @@ film or search; the people query and profile filter are retained.
 Filmographies work from the saved catalog without an account. Public Instagram
 handles come from the existing `person_profiles` read policy and are cached for
 ten minutes. A failed link refresh retains saved links and leaves the filmography
-available. No biography, photo, or contact information is inferred. The profile
-can also open its canonical JUMPFLIX website page. Music artist profiles are outside
-this feature, as requested. No website deployment or database changes are required.
+available. No biography, photo, or contact information is inferred. Music artist
+profiles are outside this feature, as requested. No website deployment or database
+changes are required.
+
+Film details and people profiles stay in the app; they have no redundant
+**Open on JUMPFLIX** website button. Provider, Spotify, parkour.spot, and published
+Instagram links remain available.
 
 ## Spots and songs
 

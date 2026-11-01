@@ -296,3 +296,14 @@ screenshots remain in ignored local build/artifact directories.
   `artifacts/`; the emulator display was restored afterward.
 - Physical phone installation/testing remains deferred at the user's request.
   No physical Android TV validation is claimed.
+
+## Alpha 12 remove redundant website actions
+
+- Removed Open on JUMPFLIX from film/series details and creator/athlete profiles.
+  These screens already provide their content natively. Profiles without social
+  links no longer render an empty links row.
+- Useful provider, Spotify, parkour.spot, and Instagram actions remain. No playback,
+  account, catalog, or profile data behavior changed. Phone testing stays deferred.
+- Build and lint pass, along with all 45 existing JVM tests and seven targeted
+  browsing/profile emulator checks. Production UI contains no Open on JUMPFLIX
+  actions; no new tests were added for the button removal.

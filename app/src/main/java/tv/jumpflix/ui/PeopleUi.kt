@@ -70,9 +70,8 @@ internal fun PersonProfileContent(person: Person, films: List<CatalogItem>, tv: 
                 Text("${person.titles.size} ${if (person.titles.size == 1) "title" else "titles"} in the archive", color = Muted, style = MaterialTheme.typography.bodyMedium)
                 if (cached) Text("Credits from the saved catalog", color = Muted, style = MaterialTheme.typography.bodySmall)
                 if (loading) Text("Loading profile links…", color = Muted, style = MaterialTheme.typography.bodySmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (links.instagram.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     links.instagram.forEach { handle -> AppAction("Instagram · @$handle", tv) { open("https://www.instagram.com/$handle/") } }
-                    person.url?.let { url -> AppAction("Open on JUMPFLIX", tv) { open(url) } }
                 }
                 links.error?.let {
                     Text(it, color = Muted, style = MaterialTheme.typography.bodySmall)
