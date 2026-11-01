@@ -175,12 +175,19 @@ database change is required.
 
 Choose **Spots & songs** in the film actions to jump past long cast lists, then
 switch between the spot and song selectors. Film details show the website's
-approved spots and published soundtrack. Expand
-**Spots & songs** beside a series episode to see that episode's chapters. Choose
+approved spots and published soundtrack. Expand an episode's details, then choose
+**Spots & songs** to see that episode's chapters. Choose
 **Play from** to start at a known timestamp, **Open on parkour.spot** for a location,
 or **Open in Spotify** for a credited track. Manual songs without Spotify still appear.
 Multiple songs sharing an imported timestamp are shown as untimed; the player does
 not guess which one is active. Empty lists and failed requests have distinct states.
+
+Series details put episodes before reviews and account activity. Choose a season
+to see only its episodes, including named collections such as Extras. Each compact
+row plays or resumes the episode directly, shows watched status or local progress,
+and offers Rewatch from zero for watched episodes. Expand the row's details for
+spots/songs and the account's Mark watched action. Season selection and episode
+expansion survive rotation; both controls support touch and TV remote navigation.
 
 The custom player offers **Spots & songs** alongside its controls, including in
 phone landscape. It follows approved spot ranges and unambiguous song starts using

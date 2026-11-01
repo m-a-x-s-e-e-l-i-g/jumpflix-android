@@ -417,10 +417,15 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
     val focusRequester = remember(item.id) { FocusRequester() }
     val creditsFocus = remember(item.id) { FocusRequester() }
     val reviewsFocus = remember(item.id) { FocusRequester() }
+    val episodesFocus = remember(item.id) { FocusRequester() }
+    var seasonNumber by rememberSaveable(item.id) { mutableIntStateOf(item.seasons.firstOrNull()?.number ?: 1) }
+    val season = item.seasons.firstOrNull { it.number == seasonNumber } ?: item.seasons.firstOrNull()
+    var expandedEpisode by rememberSaveable(item.id, season?.number) { mutableStateOf<String?>(null) }
+    val reviewsIndex = if (item.type == "series") 2 + (season?.episodes?.size?.takeIf { it > 0 } ?: 1) else 1
     val detailList = rememberLazyListState()
     val scope = rememberCoroutineScope()
     LaunchedEffect(item.id) { if (tv) focusRequester.requestFocus() }
-    LazyColumn(Modifier.fillMaxSize(), state = detailList, contentPadding = PaddingValues(bottom = 40.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("title-details"), state = detailList, contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(if (tv) 300.dp else 310.dp)) {
                 FilmBackdrop(item, Modifier.fillMaxSize())
@@ -449,8 +454,11 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                     }
                     val saved = item.id in state.saved
                     AppIconAction(if (saved) "Remove from my list" else "Save to my list", if (saved) Icons.Outlined.BookmarkAdded else Icons.Outlined.BookmarkAdd, tv, selected = saved, action = toggleSaved)
+                    if (item.type == "series") Action("Episodes", true, tv) {
+                        scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; episodesFocus.requestFocus() } }
+                    }
                     Action("Reviews", false, tv) {
-                        scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; reviewsFocus.requestFocus() } }
+                        scope.launch { detailList.scrollToItem(reviewsIndex); if (tv) { withFrameNanos { }; reviewsFocus.requestFocus() } }
                     }
                     if (CreditReference.from(item.id) != null) Action("Spots & songs", false, tv) {
                         scope.launch { detailList.scrollToItem(2); if (tv) { withFrameNanos { }; creditsFocus.requestFocus() } }
@@ -466,6 +474,42 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 state.detailError?.let { Text(it, color = Muted) }
             }
         }
+        if (item.type == "series") {
+            item(key = "season-selector") {
+                Box(Modifier.focusRequester(episodesFocus).focusGroup()) {
+                    SeasonSelector(item.seasons, season, tv) { seasonNumber = it }
+                }
+            }
+            items(season?.episodes.orEmpty(), key = { "episode-${season?.number}-${it.id}" }) { episode ->
+                val key = "${item.id}:season:${season!!.number}:ep:${episode.id}"
+                val watched = watchKey(item.id, null, episode.id) in account.watched
+                val expanded = expandedEpisode == episode.id
+                EpisodeRow(episode, state.progress.firstOrNull { it.key == key }, watched, item.available, tv, expanded,
+                    { expandedEpisode = if (expanded) null else episode.id }, { start ->
+                        episode.playback?.let { source ->
+                            if (start != null) PlaybackActivity.open(context, item.id, key, episode.title, source, start)
+                            else play(source, key, episode.title)
+                        }
+                    }) {
+                    var showCredits by remember(item.id, episode.id) { mutableStateOf(false) }
+                    Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (CreditReference.from(item.id, episode.id) != null) AppAction(if (showCredits) "Hide spots & songs" else "Spots & songs", tv) { showCredits = !showCredits }
+                            if (signedIn && account.loaded) XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !account.busy && !watched) { markWatched(episode) }
+                        }
+                        if (!item.available || episode.playback == null) Text("This episode is currently unavailable.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        if (showCredits) CreditReference.from(item.id, episode.id)?.let { reference ->
+                            VideoCreditsSection(reference, tv, item.available && !item.paid && episode.playback != null) { seconds ->
+                                episode.playback?.let { PlaybackActivity.open(context, item.id, key, episode.title, it, seconds) }
+                            }
+                        }
+                    }
+                }
+            }
+            if (season?.episodes.isNullOrEmpty()) item(key = "empty-episodes") {
+                Text(if (state.detailLoading) "Loading episodes…" else "No episodes available yet.", color = Muted, modifier = Modifier.padding(24.dp))
+            }
+        }
         item(key = "reviews") { ReviewsSection(item.id, tv, account.review, reviewsFocus) }
         if (item.type == "movie") item(key = "credits") {
             CreditReference.from(item.id)?.let { reference ->
@@ -477,28 +521,6 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
             }
         }
         item { MediaAccountControls(item, account, signedIn, tv, retry, signIn, rate, review) { markWatched(null) } }
-        item.seasons.forEach { season ->
-            item(key = "season-${season.number}") { Text(season.title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(24.dp)) }
-            items(season.episodes, key = { "${season.number}:${it.id}" }) { episode ->
-                var showCredits by remember(item.id, episode.id) { mutableStateOf(false) }
-                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("${episode.position.toString().padStart(2, '0')}  ${episode.title}", color = Ink)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        episode.playback?.let { source -> Action("Play", true, tv) { play(source, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title) } }
-                        Action(if (showCredits) "Hide spots & songs" else "Spots & songs", false, tv) { showCredits = !showCredits }
-                        if (signedIn && account.loaded) {
-                            val watched = watchKey(item.id, null, episode.id) in account.watched
-                            XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !account.busy && !watched) { markWatched(episode) }
-                        }
-                    }
-                }
-                if (showCredits) CreditReference.from(item.id, episode.id)?.let { reference ->
-                    VideoCreditsSection(reference, tv, item.available && !item.paid && episode.playback != null) { seconds ->
-                        episode.playback?.let { PlaybackActivity.open(context, item.id, "${item.id}:season:${season.number}:ep:${episode.id}", episode.title, it, seconds) }
-                    }
-                }
-            }
-        }
     }
 }
 

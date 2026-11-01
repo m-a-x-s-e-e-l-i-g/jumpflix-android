@@ -101,4 +101,29 @@ class BrowseSmokeTest {
         app.onNodeWithText(original).assertExists()
         app.onNodeWithText("Discover film").assertDoesNotExist()
     }
+
+    @Test fun seriesShowsOnlySelectedSeasonAndReviewsShortcutStillWorks() {
+        awaitHome()
+        app.runOnIdle {
+            val model = ViewModelProvider(app.activity)[CatalogViewModel::class.java]
+            model.select(model.state.value.catalog!!.items.first { it.id == "series:75" })
+        }
+        app.onNode(hasText("Episodes") and hasClickAction()).activate()
+        app.onNodeWithTag("season-1").assertIsDisplayed()
+        app.onNodeWithTag("season-2").activate()
+        app.onNodeWithTag("season-2").assertIsSelected()
+        lateinit var extras: String
+        lateinit var firstSeasonEpisode: String
+        app.runOnIdle {
+            val series = ViewModelProvider(app.activity)[CatalogViewModel::class.java].state.value.selected!!
+            extras = series.seasons.first { it.number == 2 }.episodes.first().id
+            firstSeasonEpisode = series.seasons.first { it.number == 1 }.episodes.first().id
+        }
+        app.onNodeWithTag("title-details").performScrollToNode(hasTestTag("episode-$extras"))
+        app.onNodeWithTag("episode-$extras").assertExists()
+        app.onNodeWithTag("episode-$firstSeasonEpisode").assertDoesNotExist()
+        app.onNodeWithTag("title-details").performScrollToIndex(0)
+        app.onNode(hasText("Reviews") and hasClickAction()).activate()
+        app.onNode(hasText("Reviews") and isFocusable() and !hasClickAction()).assertIsDisplayed()
+    }
 }

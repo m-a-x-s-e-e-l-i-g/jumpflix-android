@@ -402,3 +402,28 @@ screenshots remain in ignored local build/artifact directories.
 - Physical Search for O Mar Apaga returned Peanutbutter. Screenshots remain in
   ignored artifacts/phone-alpha15-* files. This validates the tested title/device
   combination, not every provider, cutout geometry, or physical TV.
+
+## Alpha 16 season and episode layout
+
+- Series put the episode list before reviews and account activity, with an Episodes
+  shortcut from the title actions. A horizontally scrolling selector shows one
+  season at a time, preserving custom collection names such as Extras. Single-season
+  titles show the season name without a redundant selection button.
+- Episodes are compact numbered rows with one main play/resume/rewatch action,
+  watched status, and a small local-progress bar where duration is known. Watched
+  episodes explicitly rewatch from zero. Unavailable episodes cannot start playback.
+  Expanding one episode reveals its credit and account-watched actions; other
+  episodes stay collapsed. Selection and expansion use saved Compose state.
+- Build, all 54 JVM tests, and lint pass with zero lint errors. Nine targeted
+  emulator checks pass: seven browsing regressions plus two episode interaction
+  checks. They cover remote season selection, selected-season isolation, Resume
+  and Rewatch callback positions, unavailable-source handling, expanding/collapsing
+  secondary actions, and the Reviews shortcut after the changed list ordering.
+- Alpha16 was installed in place on the connected Nothing A063, preserving sign-in.
+  CAVEMEN's five Season 1 episodes and three Extras were visually checked. Switching
+  seasons replaced the list, updated its count, and kept the selection visible.
+  Expanding an Extras episode exposed Spots & songs and Mark watched without adding
+  action rows to its siblings. No watched/rating/review submissions were made, and
+  no instrumentation APK ran on the phone. Screenshots remain in ignored
+  artifacts/phone-alpha16-* files. No physical Android TV validation is claimed.
+- No website, database, auth, or playback-provider changes were required.
