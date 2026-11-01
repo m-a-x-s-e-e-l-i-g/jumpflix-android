@@ -57,6 +57,13 @@ class BrowseSmokeTest {
         app.onNode(hasText("Songs", substring = true) and hasClickAction()).activate()
     }
 
+    @Test fun guestCanReachPublicReviewsDirectlyFromFilmActions() {
+        awaitHome()
+        app.onNodeWithText("Discover film").activate()
+        app.onNode(hasText("Reviews") and hasClickAction()).activate()
+        app.onNode(hasText("Reviews") and isFocusable() and !hasClickAction()).assertIsDisplayed()
+    }
+
     @Test fun peopleSearchOpensAthleteFilmographyAndBackReturnsThroughProfile() {
         awaitHome()
         app.onAllNodesWithContentDescription("Search").filter(hasClickAction()).onFirst().activate()

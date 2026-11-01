@@ -95,6 +95,18 @@ explicitly post/edit a public review (up to 2,000 characters). These actions req
 sign-in and a loaded account state. They use the existing RLS-protected tables;
 the APK contains no service credentials. There are no schema/configuration changes.
 
+Public reviews are visible directly on film and series details, including for
+guests. Choose **Reviews** in the title actions to jump to the list. Entries show
+the public author name (or Anonymous), date, edited status, and review text. Long
+reviews expand with **Read full review**; **More reviews** loads the next page.
+Posting/editing a review refreshes the list. Failed loads retain reviews already
+on screen and offer a retry instead of claiming there are no reviews.
+
+The list reads only the website's existing `reviews_with_author` public view,
+scoped to the selected title, with stable timestamp/ID pagination. It sends no
+account token and does not request user IDs or account email fields. Author names that
+look like emails display only their local part, matching the website.
+
 When signed in, the Account tab shows **Google connected** for a linked identity.
 Otherwise **Connect Google account** uses the authenticated identity-linking flow
 and keeps the current JUMPFLIX user ID. Google identities already owned by another

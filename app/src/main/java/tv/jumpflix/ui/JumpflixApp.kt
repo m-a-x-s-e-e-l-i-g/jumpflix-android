@@ -409,6 +409,7 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
     val context = LocalContext.current
     val focusRequester = remember(item.id) { FocusRequester() }
     val creditsFocus = remember(item.id) { FocusRequester() }
+    val reviewsFocus = remember(item.id) { FocusRequester() }
     val detailList = rememberLazyListState()
     val scope = rememberCoroutineScope()
     LaunchedEffect(item.id) { if (tv) focusRequester.requestFocus() }
@@ -436,8 +437,11 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                         Action(if (item.paid) "Open official provider" else if (progress?.inProgress == true) "Resume film" else "Watch film", true, tv) { play(source, item.id, item.title) }
                     }
                     Action(if (item.id in state.saved) "Saved to my list" else "Save to my list", false, tv, onClick = toggleSaved)
+                    Action("Reviews", false, tv) {
+                        scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; reviewsFocus.requestFocus() } }
+                    }
                     if (CreditReference.from(item.id) != null) Action("Spots & songs", false, tv) {
-                        scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; creditsFocus.requestFocus() } }
+                        scope.launch { detailList.scrollToItem(2); if (tv) { withFrameNanos { }; creditsFocus.requestFocus() } }
                     }
                 }
                 if (!item.available) Text("This title is currently unavailable.", color = Muted)
@@ -450,6 +454,7 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 state.detailError?.let { Text(it, color = Muted) }
             }
         }
+        item(key = "reviews") { ReviewsSection(item.id, tv, account.review, reviewsFocus) }
         if (item.type == "movie") item(key = "credits") {
             CreditReference.from(item.id)?.let { reference ->
                 Box(Modifier.focusRequester(creditsFocus).focusGroup()) {

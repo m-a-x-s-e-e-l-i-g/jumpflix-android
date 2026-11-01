@@ -324,3 +324,29 @@ screenshots remain in ignored local build/artifact directories.
   remote seeking and phone fullscreen/unknown-duration seeking behavior.
 - Physical phone testing remains deferred. These automated checks do not claim
   live YouTube rendering or playback validation on a physical device.
+
+## Alpha 14 visible public reviews
+
+- Film/series details now show public reviews before spots/songs and account
+  composition controls. A Reviews action jumps directly to the list with TV
+  focus. Viewing reviews does not require sign-in or expanding Rate & review.
+- Entries show the public display name/Anonymous, localized date, edited marker,
+  and full review body with expansion for long text. Ten-review pages use stable
+  updated-time/ID cursors and deduplicate appended results. No user IDs or email
+  addresses are requested; email-shaped author names omit the domain.
+- The public feed reads the same reviews_with_author view as the website, without
+  a session token. Posting/editing one's review reloads the public list. Cancelled
+  or outdated requests cannot overwrite the selected title's current feed; failed
+  refreshes/load-more requests preserve displayed reviews and offer a retry.
+- A read-only production query verified public review visibility and cursor
+  pagination for a title with multiple reviews. No reviews were created or edited
+  as part of verification. No website, database, or auth changes were made.
+- Build/lint and all 49 JVM tests pass. Nine targeted review/browsing emulator
+  checks pass, covering guest access, shortcuts, expansion, pagination callbacks,
+  TV retry, and the live public review read. The other 25 emulator cases also
+  passed in the broader regression run; an ambiguous test selector was corrected
+  before the final targeted run.
+- The published review on Op zen Hollands was visually checked in guest phone
+  and TV layouts, including TV focus on the individual review. Screenshots remain
+  in ignored `artifacts/`. Emulator display settings were restored. Physical phone
+  installation/testing remains deferred at the user's request.
