@@ -47,9 +47,14 @@ class UserStatsUiTest {
     }
 
     @Test fun tvStatsShowBreakdownDistributionAndPaginatedRatings() {
+        var refreshes = 0
         app.setContent { JumpflixTheme { Box(Modifier.fillMaxSize().background(Background).testTag("stats-tv")) {
-            UserStatsContent(UserStatsState("qa", data = fixture()), true, {}, {})
+            UserStatsContent(UserStatsState("qa", data = fixture()), true, { refreshes++ }, {})
         } } }
+        app.onNodeWithText("Refresh stats").assertDoesNotExist()
+        app.onNodeWithText("Back to account").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        app.onNodeWithText("Back to account").performKeyInput { pressKey(Key.DirectionUp) }
+        app.runOnIdle { assertEquals(1, refreshes) }
         app.onNodeWithText("330 XPOP").assertExists()
         scrollTo("Saved playback time")
         app.onNodeWithText("2h 0m").assertExists()
@@ -67,11 +72,15 @@ class UserStatsUiTest {
     @Test fun phoneStatsShowEmptyAccountAndTouchRefreshWithoutInventingRatings() {
         var refreshes = 0
         val empty = UserStats(StatsOverview(), List(10) { 0L }, emptyList(), emptyList(), ContributionStats())
+        val state = mutableStateOf(UserStatsState("qa", data = empty))
         app.setContent { JumpflixTheme { Box(Modifier.width(360.dp).fillMaxSize().background(Background).testTag("stats-phone")) {
-            UserStatsContent(UserStatsState("qa", data = empty), false, { refreshes++ }, {})
+            UserStatsContent(state.value, false, { refreshes++; state.value = state.value.copy(loading = true) }, {})
         } } }
-        app.onNodeWithText("Refresh stats").performClick()
+        app.onNodeWithText("Refresh stats").assertDoesNotExist()
+        app.onNodeWithTag("stats-list").performTouchInput { swipeDown(startY = height * .2f, endY = height * .9f, durationMillis = 600) }
         app.runOnIdle { assertEquals(1, refreshes) }
+        app.onNodeWithTag("stats-list").performTouchInput { swipeDown(startY = height * .2f, endY = height * .9f, durationMillis = 600) }
+        app.runOnIdle { assertEquals(1, refreshes); state.value = state.value.copy(loading = false) }
         scrollTo("Average rating")
         app.onNodeWithText("—").assertExists()
         capture("stats-phone", "stats-phone-qa.png")
@@ -79,11 +88,16 @@ class UserStatsUiTest {
         app.onNodeWithText("No ratings yet. Rate a title to start your chart.").assertExists()
         scrollTo("No reviews yet.")
         app.onNodeWithText("No reviews yet.").assertExists()
+        app.onNodeWithTag("stats-list").performTouchInput { swipeDown(startY = height * .2f, endY = height * .6f, durationMillis = 400) }
+        app.runOnIdle { assertEquals(1, refreshes) }
     }
     @Test fun failureOffersRetryWithoutPresentingAZeroAccount() {
-        app.setContent { JumpflixTheme { UserStatsContent(UserStatsState("qa", error = "Could not load stats."), false, {}, {}) } }
+        var refreshes = 0
+        app.setContent { JumpflixTheme { UserStatsContent(UserStatsState("qa", error = "Could not load stats."), false, { refreshes++ }, {}) } }
         app.onNodeWithText("Could not load stats.").assertExists()
-        app.onNodeWithText("Refresh stats").assertIsEnabled()
+        app.onNodeWithText("Refresh stats").assertDoesNotExist()
+        val retry = app.onNodeWithTag("stats-refresh").fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == "Refresh stats" }
+        app.runOnIdle { retry.action(); assertEquals(1, refreshes) }
         app.onNodeWithText("0 XPOP").assertDoesNotExist()
     }
     @Test fun accountEntryReturnsOnBackAndResetsWhenAccountChanges() {

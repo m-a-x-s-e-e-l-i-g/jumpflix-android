@@ -106,6 +106,8 @@ Choose **Account → Your stats** after signing in. The screen shows the shared
 XPOP total, watched film/series/episode entries, saved playback time, archive
 progress, average rating and rating distribution, contribution status counts,
 paginated rated titles, and the latest 20 reviews. Title links open JUMPFLIX.
+Pull down at the top of the stats page to refresh. On TV, press Up at the top.
+Screen readers also have a Refresh stats action; there is no refresh button.
 
 Stats read the website's existing account RPCs and owner-scoped tables. Failed
 refreshes keep the last loaded account snapshot and display an error; changing

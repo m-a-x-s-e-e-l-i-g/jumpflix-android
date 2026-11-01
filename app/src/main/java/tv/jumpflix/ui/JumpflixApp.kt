@@ -372,7 +372,7 @@ private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
         item { Text("${state.catalog?.items?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }
         item { Action(if (state.loading) "Refreshing…" else "Refresh catalog", true, tv, onClick = refresh) }
         state.error?.let { error -> item { Text(error, color = Muted) } }
-        item { Text("Sign in to earn XPOP, rate titles, and post reviews with your existing JUMPFLIX account. Completed watches sync to the website. Saved titles and resume positions stay on this device; maps and casting are still to come.", color = Muted) }
+        item { Text("Sign in to earn XPOP, rate titles, and post reviews with your existing JUMPFLIX account. Completed watches sync to the website. Saved titles and resume positions stay on this device; casting is still to come.", color = Muted) }
         item { HorizontalDivider(color = Surface) }
         item { Text("Open source & acknowledgments", color = Ink, fontWeight = FontWeight.Bold) }
         item { Text("This client is licensed under GNU GPL v3. Its TV focus card is adapted from NuvioTV by the Nuvio contributors. The interface follows Nuvio’s cinema-first browsing, with JUMPFLIX branding and catalog. Noto Sans is licensed under the SIL Open Font License. Gradle wrapper: Apache License 2.0.", color = Muted) }

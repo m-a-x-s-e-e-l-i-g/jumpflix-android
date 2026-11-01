@@ -195,3 +195,18 @@ screenshots remain in ignored local build/artifact directories.
   error was displayed. Checks reported booleans without exposing account details.
 - This verifies installation, session preservation, and live account stats loading.
   It does not extend the previous playback or map hardware-validation evidence.
+
+## Alpha 8 navigation and stats refresh
+
+- Removed the native map destination, screen/model code, bundled spot data, map
+  snapshot script, map-specific tests, and MapLibre dependency. Website map routes
+  and data were not modified. The debug APK no longer includes the map SDK/data.
+- Replaced the stats refresh button with Material 3 pull-to-refresh. Pulling at
+  the top refreshes once; regular scrolling and additional pulls while loading
+  do not start duplicate requests. TV Up at the top and a screen-reader refresh
+  action provide equivalent access without a visible button.
+- Build, lint, all 36 JVM tests, and all 18 emulator instrumentation checks pass,
+  including pull gestures, loading guards, ordinary scroll behavior, TV refresh,
+  accessibility retry, absent map navigation, and existing native playback checks.
+- The phone disconnected after the alpha 7 check. Alpha 8 is built and tested on
+  the emulator; installation and physical pull-gesture validation are pending.

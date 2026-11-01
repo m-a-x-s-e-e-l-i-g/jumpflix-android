@@ -25,6 +25,7 @@ class BrowseSmokeTest {
 
     @Test fun saveFromDetailsAndFindInLibrary() {
         awaitHome()
+        app.onAllNodesWithContentDescription("Map").assertCountEquals(0)
         app.onNodeWithText("Discover film").activate()
         lateinit var selectedTitle: String
         app.runOnIdle { selectedTitle = ViewModelProvider(app.activity)[CatalogViewModel::class.java].state.value.selected!!.title }
