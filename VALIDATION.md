@@ -79,5 +79,27 @@ screenshots remain in ignored local build/artifact directories.
   verified the website URL, Google enabled state, and existing redirects were preserved.
 - A public authorization request returned 302 to `accounts.google.com` with OAuth
   state and the existing provider callback. It did not sign in a real user.
-- The user still needs to complete the Google account selection/consent on the phone
-  to validate the entire live round trip.
+- The user confirmed that the live Google sign-in round trip works on the phone.
+
+## Alpha 4 portrait posters and signed-in account UI
+
+- Home, search, and My list use 2:3 portrait posters on phone and TV. Card widths
+  were adjusted for the taller artwork; featured/detail artwork stays wide.
+- Signed-in Google accounts show **Google connected** instead of another login button.
+  Accounts without a Google identity show **Connect Google account**, using the
+  authenticated Supabase linking endpoint and binding completion to the same user ID.
+- Provider badges are populated from server identities (with server app-metadata
+  fallback), never from editable user metadata. Restore refreshes those identities.
+- Nineteen JVM tests pass, including the authenticated linking request and provider
+  parsing/round-trip storage checks. Android build and lint pass.
+- Manual linking was enabled in the existing Supabase auth config. Read-back verified
+  the website URL, redirect allowlist, and Google enabled state were preserved.
+- No live account-linking attempt was performed on the user's already-linked account.
+- Six emulator instrumented tests pass: three account states, detail/save/library,
+  accent-insensitive search including scrolling through portrait results, and encrypted
+  session/pending-link persistence. The keyboard Search action dismisses the keyboard.
+- Portrait posters were visually verified on the physical phone. Its signed-in Account
+  screen reported **Google connected** and no **Continue with Google** button.
+- The phone disconnected before the final keyboard-search adjustment could be
+  reinstalled. The portrait/account update was already installed and verified;
+  the latest APK additionally includes the verified keyboard-search adjustment.

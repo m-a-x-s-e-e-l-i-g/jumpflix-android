@@ -65,4 +65,23 @@ class AuthApiTest {
         assertEquals("one-time-code", body.getString("auth_code"))
         assertEquals("device-private-verifier", body.getString("code_verifier"))
     }
+    @Test fun `signed in Google connections use the authenticated identity link endpoint`() {
+        server.enqueue(MockResponse().setBody("""{"url":"https://accounts.google.com/o/oauth2/auth?state=test"}"""))
+        val transaction = OAuthTransaction("private-link-verifier", System.currentTimeMillis(), "account-123")
+        api.linkGoogle(AuthSession.parse(JSONObject(session())), transaction)
+        val request = server.takeRequest()
+        assertEquals("/auth/v1/user/identities/authorize", request.requestUrl!!.encodedPath)
+        assertEquals("Bearer access-token", request.getHeader("Authorization"))
+        assertEquals("true", request.requestUrl!!.queryParameter("skip_http_redirect"))
+        assertEquals(transaction.challenge, request.requestUrl!!.queryParameter("code_challenge"))
+        assertFalse(request.path!!.contains(transaction.verifier))
+    }
+    @Test fun `connected providers come from server identities rather than editable user metadata`() {
+        val user = JSONObject("""{"id":"account-123","email":"viewer@example.test","user_metadata":{"providers":["google"]},"identities":[{"provider":"email"}]}""")
+        assertFalse(AccountProfile.parse(user).providers.contains("google"))
+        user.getJSONArray("identities").put(JSONObject().put("provider", "google"))
+        val original = AuthSession.parse(JSONObject(session()).put("user", user))
+        assertTrue(original.profile.providers.contains("google"))
+        assertTrue(AuthSession.parse(original.toJson()).profile.providers.contains("google"))
+    }
 }

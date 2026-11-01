@@ -29,7 +29,6 @@ internal fun AccountScreen(state: AccountState, tv: Boolean, signIn: (String, St
     LazyColumn(Modifier.fillMaxSize().imePadding().widthIn(max = 720.dp), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item { Brand() }
         val profile = state.profile
-        item { AccountButton("Continue with Google", tv, !state.loading && !state.awaitingGoogle, google) }
         if (state.awaitingGoogle) {
             item { Text("Finish signing in with Google in your browser, or cancel to try again.", color = Muted) }
             item { AccountButton("Cancel Google sign-in", tv, true, cancelGoogle) }
@@ -37,10 +36,17 @@ internal fun AccountScreen(state: AccountState, tv: Boolean, signIn: (String, St
         if (profile != null) {
             item { Text("Welcome back, ${profile.name}", color = Ink, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
             item { Text("Signed in as ${profile.email}", color = Muted) }
+            if ("google" in profile.providers) {
+                item { Text("Google connected", color = Ink, fontWeight = FontWeight.Bold) }
+            } else {
+                item { Text("Connect Google to sign in to this same JUMPFLIX account next time.", color = Muted) }
+                item { AccountButton("Connect Google account", tv, !state.loading && !state.awaitingGoogle, google) }
+            }
             item { Text("You’re signed in to the same JUMPFLIX account you use on the website. Your saved list and playback history are still stored on this device in this build.", color = Muted) }
             item { AccountButton("Sign out", tv, !state.loading && !state.awaitingGoogle, signOut) }
         } else {
             item { Text("Your JUMPFLIX account", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium) }
+            item { AccountButton("Continue with Google", tv, !state.loading && !state.awaitingGoogle, google) }
             item { Text("Sign in with the email and password you use on jumpflix.tv.", color = Muted) }
             item { OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true, enabled = !state.loading && !state.awaitingGoogle, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth()) }
             item {

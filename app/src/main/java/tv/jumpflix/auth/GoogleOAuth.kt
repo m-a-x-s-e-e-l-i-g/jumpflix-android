@@ -8,7 +8,7 @@ import java.security.SecureRandom
 import java.util.Base64
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
-data class OAuthTransaction(val verifier: String, val createdAt: Long) {
+data class OAuthTransaction(val verifier: String, val createdAt: Long, val expectedUserId: String? = null) {
     val challenge: String get() = GoogleOAuth.challenge(verifier)
     fun expired(now: Long = System.currentTimeMillis()): Boolean = now - createdAt !in 0..600_000L
     override fun toString() = "OAuthTransaction([redacted])"

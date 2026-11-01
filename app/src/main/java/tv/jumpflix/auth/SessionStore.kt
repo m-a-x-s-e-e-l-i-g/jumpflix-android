@@ -45,7 +45,8 @@ class SessionStore(context: Context, private val namespace: String = "jumpflix-a
     fun clear() { prefs.edit().remove("session").remove("google-pkce").commit() }
     fun savePending(transaction: OAuthTransaction) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
-        val data = JSONObject().put("verifier", transaction.verifier).put("createdAt", transaction.createdAt).toString()
+        val data = JSONObject().put("verifier", transaction.verifier).put("createdAt", transaction.createdAt)
+            .put("expectedUserId", transaction.expectedUserId ?: JSONObject.NULL).toString()
         val value = Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + "." +
             Base64.encodeToString(cipher.doFinal(data.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
         check(prefs.edit().putString("google-pkce", value).commit()) { "Could not start Google sign-in securely." }
@@ -60,7 +61,8 @@ class SessionStore(context: Context, private val namespace: String = "jumpflix-a
                 init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, Base64.decode(parts[0], Base64.NO_WRAP)))
             }
             val json = JSONObject(String(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)), Charsets.UTF_8))
-            OAuthTransaction(json.getString("verifier"), json.getLong("createdAt"))
+            OAuthTransaction(json.getString("verifier"), json.getLong("createdAt"),
+                if (json.isNull("expectedUserId")) null else json.getString("expectedUserId"))
         }.getOrNull()
     }
     fun clearPending() { prefs.edit().remove("google-pkce").commit() }

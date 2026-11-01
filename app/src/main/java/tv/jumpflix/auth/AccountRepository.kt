@@ -30,7 +30,8 @@ class AccountRepository(context: Context) {
                     saved = api.refresh(saved.refreshToken)
                     store.save(saved)
                 }
-                api.verify(saved)
+                saved = AuthSession(saved.accessToken, saved.refreshToken, saved.expiresAt, api.verify(saved))
+                store.save(saved)
                 session = saved
                 saved.profile
             } catch (error: AuthFailure) {
@@ -50,9 +51,16 @@ class AccountRepository(context: Context) {
     }
     suspend fun beginGoogle(): String = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val transaction = GoogleOAuth.create()
+            var current = session ?: store.load()
+            if (current != null && current.expiresAt <= System.currentTimeMillis() / 1000 + 60) {
+                current = api.refresh(current.refreshToken)
+                store.save(current)
+                session = current
+            }
+            val transaction = GoogleOAuth.create().copy(expectedUserId = current?.profile?.id)
+            val url = if (current != null) api.linkGoogle(current, transaction) else GoogleOAuth.authorizationUrl(baseUrl, transaction)
             store.savePending(transaction)
-            GoogleOAuth.authorizationUrl(baseUrl, transaction)
+            url
         }
     }
     suspend fun completeGoogle(uri: java.net.URI): AccountProfile = withContext(Dispatchers.IO) {
@@ -61,10 +69,13 @@ class AccountRepository(context: Context) {
             val transaction = store.takePending()?.takeUnless { it.expired() }
                 ?: throw IllegalArgumentException("Google sign-in expired. Please start it again in the app.")
             val signedIn = api.exchangeCode(GoogleOAuth.code(uri), transaction.verifier)
-            api.verify(signedIn)
-            store.save(signedIn)
-            session = signedIn
-            signedIn.profile
+            require(transaction.expectedUserId == null || signedIn.profile.id == transaction.expectedUserId) {
+                "Google could not be connected to this JUMPFLIX account. Your existing session has been kept."
+            }
+            val verified = AuthSession(signedIn.accessToken, signedIn.refreshToken, signedIn.expiresAt, api.verify(signedIn))
+            store.save(verified)
+            session = verified
+            verified.profile
         }
     }
     suspend fun cancelGoogle() = withContext(Dispatchers.IO) { mutex.withLock { store.clearPending() } }

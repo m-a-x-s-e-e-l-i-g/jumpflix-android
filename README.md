@@ -10,6 +10,7 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 ## First alpha
 
 - Home, discovery rows, title/creator/athlete search, and film/series details.
+- 2:3 portrait posters throughout home rows, search, and My list on phone and TV.
 - Device-local saved titles and resume progress, including separate episode keys.
 - Media3 playback for authorized direct/HLS streams.
 - Official YouTube and Vimeo embeds on phones, with an external-provider fallback.
@@ -50,6 +51,13 @@ This entry was added to the existing project's auth redirect allowlist on
 For another Supabase deployment, add that exact URI to Auth → URL Configuration.
 Signing in does not yet synchronize the app's device-local saved list or playback
 progress with website history.
+
+When signed in, the Account tab shows **Google connected** for a linked identity.
+Otherwise **Connect Google account** uses the authenticated identity-linking flow
+and keeps the current JUMPFLIX user ID. Google identities already owned by another
+JUMPFLIX account produce a conflict instead of merging or switching users.
+Supabase manual identity linking is enabled for this project; another deployment
+must enable it in Auth settings before this connection option can work.
 
 ## Vimeo availability
 

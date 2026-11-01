@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,12 +37,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -220,7 +224,7 @@ private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progre
         Text(title, color = Ink, fontSize = if (tv) 19.sp else 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp))
         LazyRow(contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             items(films, key = { it.id }) { item ->
-                FilmCard(item, tv, Modifier.width(if (tv) 172.dp else 150.dp), progress.firstOrNull { it.itemId == item.id }) { select(item) }
+                FilmCard(item, tv, Modifier.width(if (tv) 136.dp else 128.dp), progress.firstOrNull { it.itemId == item.id }) { select(item) }
             }
         }
     }
@@ -229,7 +233,7 @@ private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progre
 @Composable
 private fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, onClick: () -> Unit) {
     val content: @Composable ColumnScope.() -> Unit = {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 10f).background(Surface)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Surface)) {
             AsyncImage(item.thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             if (item.paid || !item.available) Text(if (!item.available) "UNAVAILABLE" else "PAID", color = Ink, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Background.copy(alpha = 0.85f), RoundedCornerShape(4.dp)).padding(5.dp))
             if (progress?.inProgress == true && progress.durationMs > 0) {
@@ -251,12 +255,14 @@ private fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifi
 
 @Composable
 private fun Search(all: List<CatalogItem>, query: String, changeQuery: (String) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
     val results = remember(all, query, filter) { all.filter { it.matches(query) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
         Text("Find your next film", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Ink)
         Spacer(Modifier.height(18.dp))
-        OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 12.dp)) {
             listOf("All", "Films", "Series", "Free").forEach { name -> Action(name, name == filter, tv) { filter = name } }
         }
@@ -279,7 +285,7 @@ private fun Library(state: CatalogState, tv: Boolean, select: (CatalogItem) -> U
 
 @Composable
 private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) -> Unit) {
-    LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 172.dp else 146.dp), contentPadding = PaddingValues(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), contentPadding = PaddingValues(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         gridItems(items, key = { it.id }) { item -> FilmCard(item, tv) { select(item) } }
     }
 }

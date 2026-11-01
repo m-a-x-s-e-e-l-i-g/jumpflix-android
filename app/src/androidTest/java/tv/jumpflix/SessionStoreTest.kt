@@ -22,10 +22,12 @@ class SessionStoreTest {
             assertFalse(persisted.contains("test-refresh-sensitive"))
             assertFalse(persisted.contains("test@example.test"))
             assertEquals("test-refresh-sensitive", SessionStore(context, namespace).load()!!.refreshToken)
-            store.savePending(OAuthTransaction("private-pkce-verifier", System.currentTimeMillis()))
+            store.savePending(OAuthTransaction("private-pkce-verifier", System.currentTimeMillis(), "test-user"))
             val pending = context.getSharedPreferences(namespace, 0).getString("google-pkce", "")!!
             assertFalse(pending.contains("private-pkce-verifier"))
-            assertEquals("private-pkce-verifier", SessionStore(context, namespace).takePending()!!.verifier)
+            val restored = SessionStore(context, namespace).takePending()!!
+            assertEquals("private-pkce-verifier", restored.verifier)
+            assertEquals("test-user", restored.expectedUserId)
             assertNull(store.takePending())
             assertNotNull(store.load())
             store.clear()

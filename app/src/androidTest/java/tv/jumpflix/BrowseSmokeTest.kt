@@ -41,6 +41,8 @@ class BrowseSmokeTest {
         awaitHome()
         app.onAllNodesWithContentDescription("Search").filter(hasClickAction()).onFirst().activate()
         app.onNode(hasSetTextAction()).performTextInput("kevin franzen")
+        app.onNode(hasSetTextAction()).performImeAction()
+        app.onNode(hasScrollAction()).performScrollToNode(hasText("KEVIN FRANZÉN"))
         app.onNodeWithText("KEVIN FRANZÉN").assertExists()
         app.onNodeWithText("No films found").assertDoesNotExist()
     }
