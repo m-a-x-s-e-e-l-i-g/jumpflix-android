@@ -27,6 +27,9 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.annotation.OptIn
@@ -106,10 +109,11 @@ class PlaybackActivity : ComponentActivity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         chrome = layout
         toolbar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(6), dp(12), dp(6)); setBackgroundColor(0xD0101012.toInt()) }
-        toolbar.addView(playerButton(this, "Back", "Back to film") { finish() }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        toolbar.addView(playerIconButton(this, R.drawable.ic_arrow_back, "Back to film") { finish() }, LinearLayout.LayoutParams(dp(48), dp(48)))
         toolbar.addView(ImageView(this).apply { setImageResource(R.drawable.mascot); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(32), dp(36)).apply { marginStart = dp(8); marginEnd = dp(8) })
         toolbar.addView(TextView(this).apply { text = filmTitle; setTextColor(Color.WHITE); textSize = 16f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         toolbar.addView(playerButton(this, "Provider", "Open official provider") { player?.pause(); sendWebCommand("pause"); openExternal(this, source.url) }, LinearLayout.LayoutParams(dp(72), dp(48)).apply { marginStart = dp(8) })
@@ -128,7 +132,15 @@ class PlaybackActivity : ComponentActivity() {
         controls = PlaybackControls(this, television, ::command)
         layout.addView(controls)
         root.addView(layout, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val cutout = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.displayCutout())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val gestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
+            chrome.setPadding(maxOf(cutout.left, bars.left), maxOf(cutout.top, bars.top), maxOf(cutout.right, bars.right), maxOf(cutout.bottom, bars.bottom, gestures.bottom))
+            insets
+        }
         setContentView(root)
+        ViewCompat.requestApplyInsets(root)
         adaptPlayerLayout()
         val requestedStart = intent.getLongExtra("startSeconds", -1).takeIf { it in 0..Int.MAX_VALUE.toLong() }?.times(1000)
         val previous = requestedStart ?: library.progress().firstOrNull { it.key == playbackKey }?.takeIf { it.inProgress }?.positionMs ?: 0L
@@ -153,6 +165,7 @@ class PlaybackActivity : ComponentActivity() {
     }
 
     private fun command(name: String, value: Double?) {
+        if (name == "back") { finish(); return }
         if (name == "fullscreen") {
             requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             return
@@ -298,6 +311,8 @@ class PlaybackActivity : ComponentActivity() {
     private fun adaptPlayerLayout() {
         // Leave room for the complete provider viewport on short landscape phones.
         toolbar.visibility = if (!television && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
+        controls.setFullscreen(!television && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+        ViewCompat.requestApplyInsets(root)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); adaptPlayerLayout() }

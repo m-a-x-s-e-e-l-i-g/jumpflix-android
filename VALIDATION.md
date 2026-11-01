@@ -367,3 +367,38 @@ screenshots remain in ignored local build/artifact directories.
   title deep link was used: warm title links are not routed by the current
   MainActivity.onNewIntent implementation and remain a separate navigation issue.
   This check does not establish live YouTube behavior on Android TV or all devices.
+
+## Alpha 15 player safe areas, compact navigation, and song search
+
+- Native player controls respect display-cutout, visible system-bar, and mandatory
+  gesture insets, including when system bars are hidden. Video remains full bleed.
+  Back is an icon in the portrait toolbar and landscape control row; mute and
+  fullscreen use accessible icons with state-specific descriptions.
+- Film details use a bookmark icon for My list. The primary action says Resume
+  for unfinished films; account-watched films take precedence and show Rewatch,
+  which explicitly starts at zero despite any existing local checkpoint.
+- The phone masthead is smaller and shows the XPOP icon and number without the
+  trailing XPOP text. Creator/athlete profiles replace it with a fixed Back/name
+  bar, also available to TV remote navigation.
+- Search includes song titles and soundtrack artists alongside existing film/person
+  fields. A paginated public video_songs/songs index is cached locally; matching
+  happens locally without per-keystroke requests. Partial refresh failures preserve
+  the previous cache and expose retry. No database, website, or auth changes.
+- Build and lint pass (zero errors), along with 54 JVM tests and all 36 emulator
+  instrumented tests. New coverage includes watched-action precedence/reset,
+  soundtrack matching and cache pagination/failure, production player inset
+  handling, and a live song-name search. Existing profile/save/control checks
+  cover the updated icons and fixed header. No physical Android TV was available.
+- VersionCode 15 / 0.1.0-alpha15 was installed in place on the Nothing A063.
+  Sign-in remained available; no app data was cleared and no instrumentation APK
+  ran on the phone. The compact header, bookmark, and profile Back/name bar were
+  visually checked. Profile Back returned to the originating film.
+- On that phone, Op zen Hollands showed Rewatch despite its previous checkpoint
+  and opened at 0:00 / 50:01. The portrait Back bounds began at y=151px, below
+  the reported 136px top cutout. Landscape Back and fullscreen/mute icons also
+  stayed clear of the side cutout. Live video advanced using the native controls;
+  it was paused, unmuted while paused, and closed after the check. Normal playback
+  updated the local checkpoint; no watched/rating/review mutations were submitted.
+- Physical Search for O Mar Apaga returned Peanutbutter. Screenshots remain in
+  ignored artifacts/phone-alpha15-* files. This validates the tested title/device
+  combination, not every provider, cutout geometry, or physical TV.

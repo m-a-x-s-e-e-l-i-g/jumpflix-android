@@ -35,7 +35,7 @@ class PlaybackControlsTest {
             assertEquals("mute", commands[1].first)
             assertEquals("seek", commands[2].first)
             assertEquals(40.0, commands[2].second!!, .1)
-            assertFalse(controls.descendants().any { it.contentDescription == "Toggle fullscreen" })
+            assertFalse(controls.descendants().any { it.contentDescription == "Enter fullscreen" })
         }
     }
 
@@ -46,8 +46,13 @@ class PlaybackControlsTest {
             app.activity.setContentView(controls)
             controls.render(PlaybackSnapshot(ready = true))
             assertFalse(controls.descendants().filterIsInstance<SeekBar>().single().isEnabled)
-            controls.descendants().first { it.contentDescription == "Toggle fullscreen" }.performClick()
+            controls.descendants().first { it.contentDescription == "Enter fullscreen" }.performClick()
             assertEquals("fullscreen", lastCommand)
+            controls.setFullscreen(true)
+            controls.descendants().first { it.contentDescription == "Exit fullscreen" }.performClick()
+            assertEquals("fullscreen", lastCommand)
+            controls.descendants().first { it.contentDescription == "Back to film" && it.visibility == View.VISIBLE }.performClick()
+            assertEquals("back", lastCommand)
         }
     }
 }

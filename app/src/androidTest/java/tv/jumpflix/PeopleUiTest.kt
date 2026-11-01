@@ -32,7 +32,7 @@ class PeopleUiTest {
         var selected = ""
         var url = ""
         app.setContent { JumpflixTheme {
-            PersonProfileContent(person, films, false, true, PersonLinks(listOf("alex.example")), false, {}, {}, { selected = it.id }, { url = it })
+            PersonProfileContent(person, films, false, true, PersonLinks(listOf("alex.example")), false, {}, { selected = it.id }, { url = it })
         } }
         app.onNodeWithText("Creator & athlete").assertExists()
         app.onNodeWithText("Credits from the saved catalog").assertExists()
@@ -52,7 +52,7 @@ class PeopleUiTest {
         val films = films()
         var retries = 0
         app.setContent { JumpflixTheme {
-            PersonProfileContent(buildPeopleIndex(films).single(), films, true, false, PersonLinks(error = "Social links unavailable."), false, { retries++ }, {}, {}, {})
+            PersonProfileContent(buildPeopleIndex(films).single(), films, true, false, PersonLinks(error = "Social links unavailable."), false, { retries++ }, {}, {})
         } }
         app.onNodeWithText("Retry profile links").activate()
         app.runOnIdle { assertEquals(1, retries) }

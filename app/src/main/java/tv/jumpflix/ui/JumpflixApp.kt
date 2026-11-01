@@ -165,17 +165,18 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (!television) PhoneMasthead(xpop.summary?.takeIf { xpop.ownerId == account.profile?.id }) { navigate(Destination.Account) }
+                val currentPerson = people.firstOrNull { it.key == trail.person }
+                if (trail.person != null) ProfileMasthead(currentPerson?.name ?: "Profile", television, ::browseBack)
+                else if (!television) PhoneMasthead(xpop.summary?.takeIf { xpop.ownerId == account.profile?.id }) { navigate(Destination.Account) }
                 Box(Modifier.weight(1f)) {
                     val selected = state.selected
                     val personKey = trail.person
                     if (personKey != null) {
-                        val person = people.firstOrNull { it.key == personKey }
+                        val person = currentPerson
                         if (person != null) profileStates.SaveableStateProvider(person.key) {
-                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::browseBack, ::selectFilm)
+                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::selectFilm)
                         }
                         else Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            AppAction("Back", television, action = ::browseBack)
                             Text(if (state.loading) "Loading profile…" else "This profile is unavailable in the current catalog.", color = Muted)
                         }
                     } else if (selected != null) {
@@ -187,7 +188,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                         }
                     } else when (destination) {
                         Destination.Home -> Home(state, television, ::selectFilm, model::refresh)
-                        Destination.Search -> Search(state.catalog?.items.orEmpty(), people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile)
+                        Destination.Search -> Search(state, people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile, model::refreshMusic)
                         Destination.Library -> Library(state, television, ::selectFilm)
                         Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
                         Destination.About -> About(state, television, model::refresh)
@@ -214,9 +215,9 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
 @Composable
 internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
-        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(if (compact) 32.dp else 49.dp, if (compact) 42.dp else 64.dp))
+        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(if (compact) 26.dp else 49.dp, if (compact) 34.dp else 64.dp))
         Column {
-            Text("JUMPFLIX", color = Accent, fontSize = if (compact) 30.sp else 39.sp, letterSpacing = if (compact) 2.sp else 3.sp,
+            Text("JUMPFLIX", color = Accent, fontSize = if (compact) 24.sp else 39.sp, letterSpacing = if (compact) 1.5.sp else 3.sp,
                 fontFamily = FontFamily(Font(R.font.bebas_neue)), modifier = Modifier.graphicsLayer { rotationX = 12f; scaleX = 1.04f })
             if (!compact) Text("PARKOUR CINEMA", color = Muted, fontSize = 8.sp, letterSpacing = 2.sp)
         }
@@ -225,11 +226,11 @@ internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false) {
 
 @Composable
 internal fun PhoneMasthead(summary: XpopSummary?, account: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Brand(compact = true)
         if (summary != null) {
             TextButton(account, modifier = Modifier.heightIn(min = 48.dp).widthIn(max = 164.dp).semantics { contentDescription = "Account, ${summary.total} XPOP" }, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                XpopMark("${java.text.NumberFormat.getIntegerInstance().format(summary.total)} XPOP")
+                XpopMark(java.text.NumberFormat.getIntegerInstance().format(summary.total))
             }
         } else IconButton(account, Modifier.size(48.dp)) { Icon(Icons.Outlined.PersonOutline, "Open account", tint = Muted) }
     }
@@ -342,18 +343,19 @@ internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-private fun Search(all: List<CatalogItem>, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit) {
+private fun Search(state: CatalogState, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit) {
+    val all = state.catalog?.items.orEmpty()
     val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
     val matchingPeople = remember(people, query) { people.filter { it.matches(query) } }
-    val results = remember(all, query, filter) { all.filter { it.matches(query) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
+    val results = remember(all, state.music, query, filter) { all.filter { it.matches(query, state.music[it.id].orEmpty()) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
     LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), modifier = Modifier.fillMaxSize().testTag(if (peopleMode) "people-results" else "film-grid"),
         contentPadding = PaddingValues(24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item(key = "search-controls", span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                PageHeading(if (peopleMode) "Creators & athletes" else "Find your next film", "Search films, creators, and athletes.")
+                PageHeading(if (peopleMode) "Creators & athletes" else "Find your next film", if (peopleMode) "Find the people behind the movement." else "Search films, people, and soundtracks.")
                 Spacer(Modifier.height(18.dp))
-                OutlinedTextField(query, changeQuery, label = { Text("Title, creator, athlete") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
+                OutlinedTextField(query, changeQuery, label = { Text(if (peopleMode) "Creator or athlete" else "Film, person, or song") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
                     shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
                     PersonFilter("Films & series", !peopleMode, tv) { changePeopleMode(false) }
@@ -369,6 +371,11 @@ private fun Search(all: List<CatalogItem>, people: List<Person>, query: String, 
                     }
                 }
                 Text(if (peopleMode) "${matchingPeople.size} people" else "${results.size} titles", color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = if (peopleMode) 14.dp else 0.dp))
+                if (!peopleMode && state.musicLoading) Text("Loading song credits…", color = Muted, style = MaterialTheme.typography.bodySmall)
+                if (!peopleMode && state.musicError != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(state.musicError, color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    AppAction("Retry songs", tv, enabled = !state.musicLoading, action = retryMusic)
+                }
             }
         }
         if (peopleMode) {
@@ -376,7 +383,7 @@ private fun Search(all: List<CatalogItem>, people: List<Person>, query: String, 
         } else gridItems(results, key = { it.id }) { film -> FilmCard(film, tv) { select(film) } }
         if ((peopleMode && matchingPeople.isEmpty()) || (!peopleMode && results.isEmpty())) item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (peopleMode) "No people found" else "No films found", color = Ink, style = MaterialTheme.typography.titleLarge)
+                Text(if (peopleMode) "No people found" else if (state.musicLoading) "Searching song credits…" else "No films found", color = Ink, style = MaterialTheme.typography.titleLarge)
                 Text(if (peopleMode) "Try a creator or athlete's name." else "Try a different title, creator, or athlete.", color = Muted)
             }
         }
@@ -389,7 +396,7 @@ private fun Library(state: CatalogState, tv: Boolean, select: (CatalogItem) -> U
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
         PageHeading("Your next movie night", "Your list is saved on this device.")
         Spacer(Modifier.height(24.dp))
-        if (films.isEmpty()) EmptyState("Make room for a good film", "Open a film and choose Save to my list. It will be waiting here.")
+        if (films.isEmpty()) EmptyState("Make room for a good film", "Tap the bookmark on a film to save it here.")
         else FilmGrid(films, tv, select)
     }
 }
@@ -434,9 +441,14 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item.playback?.takeIf { item.available }?.let { source ->
                         val progress = state.progress.firstOrNull { it.key == item.id }
-                        Action(if (item.paid) "Open official provider" else if (progress?.inProgress == true) "Resume film" else "Watch film", true, tv) { play(source, item.id, item.title) }
+                        val playbackAction = moviePlaybackAction(item, progress, account.watched)
+                        Action(playbackAction.label, true, tv) {
+                            if (playbackAction.startSeconds != null) PlaybackActivity.open(context, item.id, item.id, item.title, source, playbackAction.startSeconds)
+                            else play(source, item.id, item.title)
+                        }
                     }
-                    Action(if (item.id in state.saved) "Saved to my list" else "Save to my list", false, tv, onClick = toggleSaved)
+                    val saved = item.id in state.saved
+                    AppIconAction(if (saved) "Remove from my list" else "Save to my list", if (saved) Icons.Outlined.BookmarkAdded else Icons.Outlined.BookmarkAdd, tv, selected = saved, action = toggleSaved)
                     Action("Reviews", false, tv) {
                         scope.launch { detailList.scrollToItem(1); if (tv) { withFrameNanos { }; reviewsFocus.requestFocus() } }
                     }

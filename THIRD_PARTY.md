@@ -45,6 +45,11 @@ analytics, update service, and credentials are not included.
 
 ## Other dependencies
 
+The player volume, fullscreen, fullscreen-exit, and Back vectors use Google's
+Material Design icon paths, under Apache License 2.0:
+https://github.com/google/material-design-icons . License text is retained in
+`third-party/MaterialIcons-Apache-2.0.txt` and the app's license assets.
+
 AndroidX/Compose/Media3, OkHttp, Coil, Kotlin and JUnit retain their upstream
 licenses. Versions are pinned in `app/build.gradle.kts` and `build.gradle.kts`.
 JUMPFLIX branding is supplied by the project owner. Catalog/provider artwork is

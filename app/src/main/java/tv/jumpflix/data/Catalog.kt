@@ -73,8 +73,8 @@ data class CatalogItem(
     val seasons: List<Season>,
 ) {
     val metadata: String get() = listOfNotNull(year, duration, if (type == "series") "Series" else category?.replace('-', ' ')?.replaceFirstChar { it.uppercase() }).joinToString("  ·  ")
-    fun matches(query: String): Boolean = normalizedSearch(query).trim().split(Regex("\\s+")).all { word ->
-        listOf(title, description, creators.joinToString(" "), starring.joinToString(" "))
+    fun matches(query: String, music: List<MusicCredit> = emptyList()): Boolean = normalizedSearch(query).trim().split(Regex("\\s+")).all { word ->
+        (listOf(title, description, creators.joinToString(" "), starring.joinToString(" ")) + music.flatMap { listOf(it.title, it.artist) })
             .any { normalizedSearch(it).contains(word) }
     }
 

@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.foundation.border
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -55,6 +58,17 @@ internal fun AppAction(label: String, tv: Boolean, primary: Boolean = false, ena
             Text(label)
         }
     }
+}
+
+@Composable
+internal fun AppIconAction(label: String, icon: ImageVector, tv: Boolean, modifier: Modifier = Modifier,
+    selected: Boolean? = null, action: () -> Unit) {
+    val target = modifier.size(48.dp).semantics { contentDescription = label; selected?.let { this.selected = it } }
+    if (tv) androidx.tv.material3.Button(action, target, contentPadding = PaddingValues(12.dp),
+        shape = androidx.tv.material3.ButtonDefaults.shape(shape = RoundedCornerShape(12.dp)),
+        colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (selected == true) SurfaceRaised else Surface)) {
+        androidx.tv.material3.Icon(icon, null, Modifier.size(24.dp))
+    } else IconButton(action, target.border(1.dp, Outline, RoundedCornerShape(12.dp))) { Icon(icon, null, tint = Ink) }
 }
 
 @Composable

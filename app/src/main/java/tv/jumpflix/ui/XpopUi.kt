@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import java.text.NumberFormat
 import tv.jumpflix.R
 import tv.jumpflix.data.CatalogItem
+import tv.jumpflix.data.filmWatched
 import tv.jumpflix.xpop.*
 
 @Composable
@@ -93,7 +94,7 @@ internal fun MediaAccountControls(item: CatalogItem, state: MediaAccountState, s
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error); XpopAction("Reload saved activity", tv, !state.busy, action = retry) }
         if (item.type == "movie") {
-            val watched = watchKey(item.id, item.playback) in state.watched || item.id in state.watched
+            val watched = filmWatched(item.id, item.playback, state.watched)
             XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !watched && !state.busy, action = markWatched)
         }
         var expanded by remember(item.id, state.ownerId) { mutableStateOf(false) }

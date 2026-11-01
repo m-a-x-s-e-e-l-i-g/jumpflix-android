@@ -29,10 +29,10 @@ class BrowseSmokeTest {
         app.onNodeWithText("Discover film").activate()
         lateinit var selectedTitle: String
         app.runOnIdle { selectedTitle = ViewModelProvider(app.activity)[CatalogViewModel::class.java].state.value.selected!!.title }
-        val saved = app.onAllNodesWithText("Saved to my list").fetchSemanticsNodes()
-        if (saved.isNotEmpty()) app.onNodeWithText("Saved to my list").activate()
-        app.onNodeWithText("Save to my list").activate()
-        app.onNodeWithText("Saved to my list").assertExists()
+        val saved = app.onAllNodesWithContentDescription("Remove from my list").fetchSemanticsNodes()
+        if (saved.isNotEmpty()) app.onNodeWithContentDescription("Remove from my list").activate()
+        app.onNodeWithContentDescription("Save to my list").activate()
+        app.onNodeWithContentDescription("Remove from my list").assertExists()
         app.onAllNodesWithContentDescription("My list").filter(hasClickAction()).onFirst().activate()
         app.onNodeWithText("Your next movie night").assertExists()
         app.onNodeWithText(selectedTitle).assertExists()
@@ -72,13 +72,15 @@ class BrowseSmokeTest {
         app.onNode(hasText("People") and hasClickAction()).activate()
         app.onNodeWithTag("people-results").performScrollToNode(hasContentDescription("Open profile: Kevin Franzén"))
         app.onNodeWithContentDescription("Open profile: Kevin Franzén").activate()
+        app.onNodeWithTag("profile-top-bar").assertIsDisplayed()
+        app.onNodeWithContentDescription("Back").assertIsDisplayed()
         app.onNodeWithText("Filmography").assertExists()
         app.onNodeWithTag("person-filmography").performScrollToNode(hasContentDescription("KEVIN FRANZÉN"))
         app.onNode(hasContentDescription("KEVIN FRANZÉN") and hasClickAction()).activate()
         app.onNodeWithText("Watch film").assertExists()
-        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNode((hasText("Back") or hasContentDescription("Back")) and hasClickAction()).activate()
         app.onNodeWithTag("person-filmography").assertExists()
-        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNode((hasText("Back") or hasContentDescription("Back")) and hasClickAction()).activate()
         app.onNodeWithTag("people-results").assertExists()
         app.onNode(hasSetTextAction()).assertTextContains("kevin franzen")
     }
@@ -95,7 +97,7 @@ class BrowseSmokeTest {
         }
         app.onNodeWithContentDescription("Open profile: $creator").activate()
         app.onNodeWithText("Filmography").assertExists()
-        app.onNode(hasText("Back") and hasClickAction()).activate()
+        app.onNode((hasText("Back") or hasContentDescription("Back")) and hasClickAction()).activate()
         app.onNodeWithText(original).assertExists()
         app.onNodeWithText("Discover film").assertDoesNotExist()
     }

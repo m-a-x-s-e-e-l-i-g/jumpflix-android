@@ -29,10 +29,14 @@ data class CatalogState(
     val selected: CatalogItem? = null,
     val detailLoading: Boolean = false,
     val detailError: String? = null,
+    val music: Map<String, List<MusicCredit>> = emptyMap(),
+    val musicLoading: Boolean = false,
+    val musicError: String? = null,
 )
 
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CatalogRepository(application)
+    private val musicRepository = MusicSearchRepository(application)
     private val library = LibraryStore(application)
     private val accounts = AccountRepository.get(application)
     private val rewards = XpopRepository.get(application)
@@ -50,6 +54,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         restoreAccount()
         viewModelScope.launch {
             repository.saved()?.let { catalog -> mutable.update { it.copy(catalog = catalog) } }
+            musicRepository.saved()?.let { music -> mutable.update { it.copy(music = music) } }
             refresh()
         }
     }
@@ -57,6 +62,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     fun refresh() {
         if (refreshing) return
         refreshing = true
+        refreshMusic()
         mutable.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
@@ -69,6 +75,21 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     private var refreshing = false
+    private var musicRefreshing = false
+
+    fun refreshMusic() {
+        if (musicRefreshing) return
+        musicRefreshing = true
+        mutable.update { it.copy(musicLoading = true, musicError = null) }
+        viewModelScope.launch {
+            try {
+                val music = musicRepository.refresh()
+                mutable.update { it.copy(music = music, musicLoading = false) }
+            } catch (error: CancellationException) { throw error
+            } catch (_: Exception) { mutable.update { it.copy(musicLoading = false, musicError = "Song credits could not be refreshed.") }
+            } finally { musicRefreshing = false }
+        }
+    }
 
     fun select(item: CatalogItem) {
         mutable.update { it.copy(selected = item, detailError = null, detailLoading = item.type == "series") }

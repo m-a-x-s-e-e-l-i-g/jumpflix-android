@@ -11,6 +11,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -27,7 +30,7 @@ import tv.jumpflix.data.*
 
 @Composable
 internal fun PersonProfileScreen(person: Person, films: List<CatalogItem>, tv: Boolean, cached: Boolean,
-    back: () -> Unit, select: (CatalogItem) -> Unit) {
+    select: (CatalogItem) -> Unit) {
     val context = LocalContext.current
     val repository = remember { PersonRepository(context.applicationContext) }
     var links by remember(person.key) { mutableStateOf(PersonLinks()) }
@@ -38,15 +41,25 @@ internal fun PersonProfileScreen(person: Person, films: List<CatalogItem>, tv: B
         links = repository.links(person.key, force = attempt > 0)
         loading = false
     }
-    PersonProfileContent(person, films, tv, cached, links, loading, { attempt++ }, back, select) { openExternal(context, it) }
+    PersonProfileContent(person, films, tv, cached, links, loading, { attempt++ }, select) { openExternal(context, it) }
+}
+
+@Composable
+internal fun ProfileMasthead(name: String, tv: Boolean, back: () -> Unit) {
+    val backFocus = remember(name) { FocusRequester() }
+    Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp).testTag("profile-top-bar"), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        AppIconAction("Back", Icons.AutoMirrored.Outlined.ArrowBack, tv, Modifier.focusRequester(backFocus), action = back)
+        Text(name, color = Ink, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    LaunchedEffect(name) { if (tv) backFocus.requestFocus() }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PersonProfileContent(person: Person, films: List<CatalogItem>, tv: Boolean, cached: Boolean,
-    links: PersonLinks, loading: Boolean, retry: () -> Unit, back: () -> Unit, select: (CatalogItem) -> Unit, open: (String) -> Unit) {
+    links: PersonLinks, loading: Boolean, retry: () -> Unit, select: (CatalogItem) -> Unit, open: (String) -> Unit) {
     var filter by rememberSaveable(person.key) { mutableStateOf("All credits") }
-    val backFocus = remember(person.key) { FocusRequester() }
     val results = remember(person, films, filter) {
         val ids = when (filter) { "Created by" -> person.created; "Featuring" -> person.featured; else -> person.titles }
         films.filter { it.id in ids }.distinctBy { it.id }.sortedByDescending { it.addedAt }
@@ -55,8 +68,6 @@ internal fun PersonProfileContent(person: Person, films: List<CatalogItem>, tv: 
         contentPadding = PaddingValues(24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item(key = "profile-header", span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                AppAction("Back", tv, modifier = Modifier.focusRequester(backFocus), action = back)
-                LaunchedEffect(person.key) { if (tv) backFocus.requestFocus() }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     val initials = person.name.trim().split(Regex("\\s+")).take(2).joinToString("") { it.take(1).uppercase(Locale.ROOT) }
                     Box(Modifier.size(64.dp).background(SurfaceRaised, CircleShape), contentAlignment = Alignment.Center) {

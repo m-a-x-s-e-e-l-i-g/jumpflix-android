@@ -4,7 +4,9 @@ A native Kotlin/Jetpack Compose client for the JUMPFLIX parkour film archive.
 One APK adapts to phone touch input or Android TV / Google TV remote navigation.
 
 The current UI uses a compact branded phone masthead, portrait browse cards,
-wide featured artwork, and shared primary/secondary controls. Landscape phones
+wide featured artwork, and shared primary/secondary controls. The 48dp phone header
+uses the compact wordmark and XPOP icon/number; profiles replace it with a fixed
+Back bar. Landscape phones
 use a side rail; TV keeps labeled remote navigation. Account and stats refresh
 with a pull gesture, TV Up at the top, or an accessibility action.
 
@@ -14,9 +16,12 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 
 ## First alpha
 
-- Home, discovery rows, title/creator/athlete search, and film/series details.
+- Home, discovery rows, title/creator/athlete/song/artist search, and film/series details.
 - 2:3 portrait posters throughout home rows, search, and My list on phone and TV.
 - Device-local saved titles and resume progress, including separate episode keys.
+- An icon bookmark adds/removes titles from My list. Unwatched partial plays show
+  **Resume**; completed account watches show **Rewatch** and start from the beginning,
+  even when an old device-local resume position exists.
 - Native filmmaker/creator and athlete profiles, opened from film credits or
   **Search → People**, with role filters, filmographies, and existing Instagram links.
 - Approved spot chapters and credited songs on film details, with per-episode spots
@@ -26,6 +31,8 @@ remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 - Custom JUMPFLIX controls: play/pause, timeline, ±10 seconds, speed, mute, and
   phone fullscreen. Native streams fill the screen; controls hide during playback
   and return on touch or remote input. Media remote buttons also work natively.
+- Back and playback controls respect the camera cutout and gesture areas. Mute and
+  fullscreen use labeled icons; landscape retains a Back icon in the control row.
 - Official YouTube and Vimeo embeds on phones, with an external-provider fallback.
 - Official YouTube/Vimeo app handoff on TV, where WebView support varies. Playback
   inside another provider's app cannot report progress back to JUMPFLIX.
@@ -158,6 +165,13 @@ Film details and people profiles stay in the app; they have no redundant
 Instagram links remain available.
 
 ## Spots and songs
+
+Film search also matches credited song titles and artists. The app downloads a
+single public soundtrack index in pages, then performs searches locally alongside
+title/creator/athlete matching. A complete successful index is saved for offline
+search; partial/failed downloads retain the previous cache. Loading/unavailable
+song credits are identified in Search, with a retry on failure. No website or
+database change is required.
 
 Choose **Spots & songs** in the film actions to jump past long cast lists, then
 switch between the spot and song selectors. Film details show the website's
