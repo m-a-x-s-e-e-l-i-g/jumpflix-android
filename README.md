@@ -14,6 +14,12 @@ The visual reference is [Nuvio](https://github.com/NuvioMedia/NuvioTV): cinemati
 artwork, a large featured film, horizontal browsing rows, dark surfaces, and clear
 remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 
+Home features six random eligible films per local calendar day, stable throughout
+that day. The feed starts with Continue watching (when present), New to the archive,
+then Explore the archive. Explore's Randomize button reshuffles its titles and
+returns that row to its beginning. Saved catalogs remain usable without an offline
+banner on Home; catalog refresh/status stays available in About.
+
 ## First alpha
 
 - Home, discovery rows, title/creator/athlete/song/artist search, and film/series details.

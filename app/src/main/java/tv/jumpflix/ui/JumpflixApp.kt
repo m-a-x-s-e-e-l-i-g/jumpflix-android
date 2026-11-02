@@ -56,6 +56,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.AsyncImage
 import tv.jumpflix.BuildConfig
 import tv.jumpflix.R
@@ -63,6 +66,11 @@ import tv.jumpflix.CatalogState
 import tv.jumpflix.CatalogViewModel
 import tv.jumpflix.data.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
+import kotlin.random.Random
 import tv.jumpflix.player.PlaybackActivity
 import tv.jumpflix.xpop.*
 import tv.jumpflix.ui.nuvio.LightweightCard
@@ -237,44 +245,40 @@ internal fun PhoneMasthead(summary: XpopSummary?, account: () -> Unit) {
 }
 
 @Composable
-private fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit, refresh: () -> Unit) {
+internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit, refresh: () -> Unit) {
     val all = state.catalog?.items.orEmpty()
-    val featured = remember(all) {
-        all.filter { it.available && !it.paid && !it.explicit && it.thumbnail != null }
-            .sortedWith(compareByDescending<CatalogItem> { it.ratingCount >= 3 }.thenByDescending { it.rating ?: 0.0 }.thenByDescending { it.duration.orEmpty().contains('h') })
-            .take(6)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val day by produceState(LocalDate.now(), lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                val now = ZonedDateTime.now()
+                value = now.toLocalDate()
+                delay(Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis().coerceAtLeast(1))
+            }
+        }
     }
+    val featured = remember(all, day) { dailyFeatured(all, day) }
+    var archiveSeed by rememberSaveable(day.toEpochDay()) { mutableIntStateOf(day.toEpochDay().toInt()) }
+    val archive = remember(all, archiveSeed) { all.shuffled(Random(archiveSeed)) }
     if (all.isEmpty()) {
         EmptyState(if (state.loading) "Loading the archive…" else "The archive is taking a break", state.error ?: "Finding films and the people behind them.", if (state.loading) null else refresh)
         return
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("home-feed"), contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item(key = "hero") {
-            if (featured.isNotEmpty()) Hero(featured, tv, select) else Brand(Modifier.padding(24.dp))
-        }
-        if (state.cached) item(key = "cache") {
-            Row(Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(Icons.Outlined.CloudOff, null, tint = Muted, modifier = Modifier.size(18.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(if (state.loading) "Refreshing saved catalog…" else "Browsing saved catalog", color = Muted, style = MaterialTheme.typography.labelLarge)
-                }
-                if (!state.loading) {
-                    if (tv) Action("Retry", false, true, onClick = refresh)
-                    else TextButton(refresh, Modifier.heightIn(min = 48.dp)) { Text("Retry", color = Muted) }
-                }
-            }
+            if (featured.isNotEmpty()) key(day) { Hero(featured, tv, select) } else Brand(Modifier.padding(24.dp))
         }
         val continueIds = state.progress.filter { it.inProgress }.map { it.itemId }.distinct()
         val continuing = continueIds.mapNotNull { id -> all.find { it.id == id } }
         if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, select) }
         item(key = "recent") { FilmRow("New to the archive", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, select) }
+        item(key = "all") { FilmRow("Explore the archive", archive, tv, state.progress, select) { archiveSeed++ } }
         val docs = all.filter { it.category == "documentary" }
         if (docs.isNotEmpty()) item(key = "docs") { FilmRow("Stories behind the movement", docs, tv, state.progress, select) }
         val series = all.filter { it.type == "series" }
         if (series.isNotEmpty()) item(key = "series") { FilmRow("One more episode", series, tv, state.progress, select) }
         val classics = all.filter { (it.year?.toIntOrNull() ?: Int.MAX_VALUE) <= 2015 }
         if (classics.isNotEmpty()) item(key = "classics") { FilmRow("Where it all began", classics, tv, state.progress, select) }
-        item(key = "all") { FilmRow("Explore the archive", all, tv, state.progress, select) }
     }
 }
 
@@ -308,10 +312,22 @@ private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) ->
 }
 
 @Composable
-private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progress: List<Progress>, select: (CatalogItem) -> Unit) {
+private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progress: List<Progress>, select: (CatalogItem) -> Unit,
+    randomize: (() -> Unit)? = null) {
+    val row = rememberLazyListState()
+    var shuffleCount by remember { mutableIntStateOf(0) }
+    // Reset after the new order composes, so lazy-list key anchoring cannot undo it.
+    LaunchedEffect(shuffleCount) { if (shuffleCount > 0) row.scrollToItem(0) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, color = Ink, fontSize = if (tv) 19.sp else 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp))
-        LazyRow(contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, color = Ink, fontSize = if (tv) 19.sp else 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (randomize != null) AppAction("Randomize", tv, icon = Icons.Outlined.Shuffle,
+                modifier = Modifier.semantics { contentDescription = "Randomize archive" }) {
+                randomize()
+                shuffleCount++
+            }
+        }
+        LazyRow(state = row, modifier = Modifier.testTag("film-row-$title"), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             items(films, key = { it.id }) { item ->
                 FilmCard(item, tv, Modifier.width(if (tv) 136.dp else 128.dp), progress.firstOrNull { it.itemId == item.id }) { select(item) }
             }

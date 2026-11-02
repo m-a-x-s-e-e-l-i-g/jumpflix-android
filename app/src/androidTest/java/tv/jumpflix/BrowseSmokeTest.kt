@@ -95,7 +95,7 @@ class BrowseSmokeTest {
             creator = film.creators.first()
             original = film.title
         }
-        app.onNodeWithContentDescription("Open profile: $creator").activate()
+        app.onAllNodesWithContentDescription("Open profile: $creator").onFirst().performScrollTo().activate()
         app.onNodeWithText("Filmography").assertExists()
         app.onNode((hasText("Back") or hasContentDescription("Back")) and hasClickAction()).activate()
         app.onNodeWithText(original).assertExists()

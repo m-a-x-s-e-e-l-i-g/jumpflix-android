@@ -427,3 +427,33 @@ screenshots remain in ignored local build/artifact directories.
   no instrumentation APK ran on the phone. Screenshots remain in ignored
   artifacts/phone-alpha16-* files. No physical Android TV validation is claimed.
 - No website, database, auth, or playback-provider changes were required.
+
+## Alpha 17 Home discovery — 2026-11-02
+
+- Removed the saved-catalog/retry banner from Home. Saved browsing and the empty
+  catalog retry remain; refresh/status are still available in About. A read-only
+  production request to /api/mobile/v1/catalog?offset=0&limit=1 returned 404, so this
+  client change does not restore live catalog downloads or deploy the website API.
+- Featured picks are six random available, free, non-explicit films with artwork
+  and playback. Their order is seeded by the local calendar day and canonical IDs,
+  remaining stable for that day even if catalog input order changes. Home updates
+  the day at local midnight while active and when resuming on a new day.
+- Home puts Continue watching (when present), New to the archive, and Explore the
+  archive in that order. Explore starts shuffled and has a labeled shuffle action.
+  Randomize changes only that row and resets its horizontal position after the new
+  items compose, avoiding lazy-list key anchoring retaining a prior poster.
+- Build, 56 JVM tests, and lint pass with zero lint errors. The two new unit tests
+  cover date stability/change, eligibility, input ordering, and small/empty catalogs.
+  Seven browsing regression checks passed; a creator selector was made unambiguous
+  for featured films that credit the same person in multiple roles. Two focused
+  Home emulator checks additionally pass for phone touch and TV remote layouts,
+  covering section order, absent banner, shuffle after sideways scrolling, and
+  saved-state restoration. These were targeted runs, not a full emulator suite.
+- Alpha17 was installed in place on the Nothing A063, preserving its signed-in
+  account. Its daily feature and Continue watching loaded without the banner.
+  The phone showed New to the archive directly above Explore, with a readable
+  Randomize button. After scrolling Explore sideways, Randomize restored the new
+  row's beginning and left both section headings in place. No playback, watched,
+  rating, or review mutations were submitted; no instrumentation APK ran on the
+  phone. Screenshots remain in ignored artifacts/phone-alpha17-* files.
+- No physical Android TV testing or backend deployment was performed.
