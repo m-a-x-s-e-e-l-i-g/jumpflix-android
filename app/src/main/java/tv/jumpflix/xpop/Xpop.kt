@@ -15,7 +15,7 @@ data class XpopSummary(val watching: Long, val ratings: Long, val reviews: Long,
 
 data class XpopReward(val id: Long, val amount: Int, val label: String)
 data class XpopState(val ownerId: String? = null, val summary: XpopSummary? = null, val loading: Boolean = false,
-    val error: String? = null, val reward: XpopReward? = null)
+    val error: String? = null, val reward: XpopReward? = null, val watched: Set<String>? = null)
 data class MediaAccountState(val ownerId: String? = null, val itemId: String = "", val loaded: Boolean = false,
     val busy: Boolean = false, val rating: Int? = null, val review: String = "", val watched: Set<String> = emptySet(), val error: String? = null)
 

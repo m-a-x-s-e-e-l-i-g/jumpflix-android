@@ -45,15 +45,24 @@ class XpopRepository private constructor(context: Context) {
                 }
                 api.summary(session) to added
             }
-            mutable.update { if (it.ownerId == owner) it.copy(summary = result.first, loading = false,
+            mutable.update { if (it.ownerId == owner) it.copy(summary = result.first,
                 reward = if (result.second > 0) XpopReward(++rewardId, result.second, "Watched") else it.reward) else it }
+            try {
+                val watched = accounts.authenticated(owner) { api.watchedMovies(it) + queue.forOwner(owner).map { pending -> pending.mediaId } }
+                mutable.update { if (it.ownerId == owner) it.copy(watched = watched, loading = false) else it }
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { mutable.update { if (it.ownerId == owner) it.copy(loading = false, error = "Your watched history could not refresh.") else it } }
         } catch (error: CancellationException) { throw error }
         catch (_: Exception) { mutable.update { if (it.ownerId == owner) it.copy(loading = false, error = "XPOP could not sync. Completed watches will retry when you refresh or reopen the app.") else it } }
     }
 
     fun completed(owner: String, item: WatchedItem) {
         scope.launch {
-            try { queue.add(owner, item); refresh(owner) }
+            try {
+                queue.add(owner, item)
+                mutable.update { if (it.ownerId == owner) it.copy(watched = it.watched?.plus(item.mediaId)) else it }
+                refresh(owner)
+            }
             catch (error: CancellationException) { throw error }
             catch (_: Exception) { mutable.update { if (it.ownerId == owner) it.copy(error = "Your completed watch could not be queued. Please mark it watched from the title page.") else it } }
         }
@@ -62,6 +71,7 @@ class XpopRepository private constructor(context: Context) {
 
     suspend fun markWatched(owner: String, itemId: String, item: WatchedItem): MediaAccountState {
         withContext(Dispatchers.IO) { queue.add(owner, item) }
+        mutable.update { if (it.ownerId == owner) it.copy(watched = it.watched?.plus(item.mediaId)) else it }
         refresh(owner)
         if (withContext(Dispatchers.IO) { queue.forOwner(owner).any { it.mediaId == item.mediaId } }) throw java.io.IOException("Your watch is waiting to sync.")
         return details(owner, itemId)

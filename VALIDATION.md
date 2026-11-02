@@ -457,3 +457,27 @@ screenshots remain in ignored local build/artifact directories.
   rating, or review mutations were submitted; no instrumentation APK ran on the
   phone. Screenshots remain in ignored artifacts/phone-alpha17-* files.
 - No physical Android TV testing or backend deployment was performed.
+
+## Alpha 18 unseen featured picks — 2026-11-02
+
+- Signed-in featured picks exclude the account's completed active movie watches,
+  including legacy base keys and any provider-specific key for the same film.
+  Exclusions happen after the daily shuffle so the remaining order stays stable.
+  Queued completions update known exclusions immediately while sync retries.
+- The existing authenticated XPOP repository reads all watched movie pages with
+  the current user's bearer token and explicit owner filter. It retains the last
+  known set on failure and clears it on account binding changes. History-read
+  failures do not discard an already confirmed XPOP summary/reward update.
+- Unknown history withholds featured titles, with a quiet loader while fetching.
+  Failed initial history reads and exhausted unseen selections omit the hero;
+  the rest of Home remains available. Guest picks do not use private history.
+- Build/lint pass with zero lint errors, all 59 JVM tests pass, and ten targeted
+  emulator checks pass. New coverage includes provider-key normalization, stable
+  refill ordering, all-watched exhaustion, paginated owner-scoped reads, denied
+  reads, and live UI updates from unknown to known and changed watched sets.
+- A read-only REST query using the new filters and an unassigned account ID
+  returned 200 with zero rows. This validates the live query shape, not a real
+  signed-in user's history or a full RLS audit. No schema/auth/policy changes.
+- The phone disconnected from ADB before installation. Alpha18 is built but was
+  not installed or validated with the user's real account on the phone. No watched
+  records were created/changed for QA, and no physical TV testing was performed.

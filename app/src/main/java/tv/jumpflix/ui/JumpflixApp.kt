@@ -195,7 +195,11 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                             PlaybackActivity.open(context, selected.id, key, title, source)
                         }
                     } else when (destination) {
-                        Destination.Home -> Home(state, television, ::selectFilm, model::refresh)
+                        Destination.Home -> Home(state, television, ::selectFilm, model::refresh, when {
+                            account.profile != null -> xpop.takeIf { it.ownerId == account.profile?.id }?.watched
+                            account.loading || account.error != null -> null
+                            else -> emptySet()
+                        }, account.loading || xpop.loading)
                         Destination.Search -> Search(state, people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile, model::refreshMusic)
                         Destination.Library -> Library(state, television, ::selectFilm)
                         Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
@@ -245,7 +249,8 @@ internal fun PhoneMasthead(summary: XpopSummary?, account: () -> Unit) {
 }
 
 @Composable
-internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit, refresh: () -> Unit) {
+internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit, refresh: () -> Unit,
+    watched: Set<String>? = emptySet(), watchedPending: Boolean = watched == null) {
     val all = state.catalog?.items.orEmpty()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val day by produceState(LocalDate.now(), lifecycle) {
@@ -257,7 +262,7 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
             }
         }
     }
-    val featured = remember(all, day) { dailyFeatured(all, day) }
+    val featured = remember(all, day, watched) { watched?.let { dailyFeatured(all, day, it) }.orEmpty() }
     var archiveSeed by rememberSaveable(day.toEpochDay()) { mutableIntStateOf(day.toEpochDay().toInt()) }
     val archive = remember(all, archiveSeed) { all.shuffled(Random(archiveSeed)) }
     if (all.isEmpty()) {
@@ -265,8 +270,11 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
         return
     }
     LazyColumn(Modifier.fillMaxSize().testTag("home-feed"), contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        item(key = "hero") {
-            if (featured.isNotEmpty()) key(day) { Hero(featured, tv, select) } else Brand(Modifier.padding(24.dp))
+        if (featured.isNotEmpty() || (watched == null && watchedPending)) item(key = "hero") {
+            if (featured.isNotEmpty()) key(day, watched) { Hero(featured, tv, select) }
+            else Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else if (LocalConfiguration.current.screenHeightDp < 500) 280.dp else 350.dp)) {
+                CircularProgressIndicator(Modifier.align(Alignment.Center).size(24.dp), color = Accent, strokeWidth = 2.dp)
+            }
         }
         val continueIds = state.progress.filter { it.inProgress }.map { it.itemId }.distinct()
         val continuing = continueIds.mapNotNull { id -> all.find { it.id == id } }
@@ -287,7 +295,7 @@ private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) ->
     var index by rememberSaveable { mutableIntStateOf(0) }
     val item = items[index.coerceIn(0, items.lastIndex)]
     val shortScreen = LocalConfiguration.current.screenHeightDp < 500
-    Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else if (shortScreen) 280.dp else 350.dp)) {
+    Box(Modifier.fillMaxWidth().height(if (tv) 310.dp else if (shortScreen) 280.dp else 350.dp).testTag("featured-picks")) {
         FilmBackdrop(item, Modifier.fillMaxSize())
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Background.copy(alpha = .05f), .3f to Background.copy(alpha = .15f), .65f to Background.copy(alpha = .85f), 1f to Background)))
         if (tv) Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.96f), Background.copy(alpha = 0.6f), Color.Transparent))))

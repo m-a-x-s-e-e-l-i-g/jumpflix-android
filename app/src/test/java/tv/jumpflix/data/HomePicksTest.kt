@@ -25,4 +25,15 @@ class HomePicksTest {
             film.copy(id = "movie:6", playback = null)), day))
         assertTrue(dailyFeatured(emptyList(), day).isEmpty())
     }
+
+    @Test fun `watched films are excluded across base and provider keys without reshuffling remaining picks`() {
+        val original = dailyFeatured(films, day)
+        val watched = setOf(original[0].id, "${original[1].id}:yt:previous-source", "${original[2].id}:vimeo:123")
+        val picks = dailyFeatured(films, day, watched)
+        assertEquals(original.drop(3), picks.take(3))
+        assertEquals(6, picks.size)
+        assertTrue(picks.none { film -> original.take(3).any { it.id == film.id } })
+        assertEquals(original, dailyFeatured(films, day, setOf("${original[0].id}0:yt:neighbor", "series:1:ep:video")))
+        assertTrue(dailyFeatured(films, day, films.map { it.id }.toSet()).isEmpty())
+    }
 }

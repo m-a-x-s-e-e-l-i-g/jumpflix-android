@@ -15,7 +15,10 @@ artwork, a large featured film, horizontal browsing rows, dark surfaces, and cle
 remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 
 Home features six random eligible films per local calendar day, stable throughout
-that day. The feed starts with Continue watching (when present), New to the archive,
+that day. Signed-in featured picks exclude completed account watches across video
+providers, including completions waiting to sync. Features wait for the account's
+history to load; if no unseen eligible films remain, the featured area is omitted.
+The feed starts with Continue watching (when present), New to the archive,
 then Explore the archive. Explore's Randomize button reshuffles its titles and
 returns that row to its beginning. Saved catalogs remain usable without an offline
 banner on Home; catalog refresh/status stays available in About.

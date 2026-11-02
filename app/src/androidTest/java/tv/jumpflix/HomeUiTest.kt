@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.runtime.*
 import androidx.test.platform.app.InstrumentationRegistry
 import java.time.LocalDate
 import kotlin.random.Random
@@ -51,4 +52,28 @@ class HomeUiTest {
 
     @Test fun phoneHomeOrdersRowsAndRandomizesTheArchiveWithoutTheCacheBanner() = checkHome(false)
     @Test fun remoteHomeCanRandomizeAndRestoreTheArchiveRow() = checkHome(true)
+
+    @Test fun unknownHistoryWithholdsFeaturesAndWatchedUpdatesRemoveExistingPicks() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val catalog = Catalog.parse(context.assets.open("catalog-seed.json").bufferedReader().use { it.readText() })
+        val state = CatalogState(catalog = catalog, loading = false)
+        var watched by mutableStateOf<Set<String>?>(null)
+        var pending by mutableStateOf(true)
+        app.setContent { JumpflixTheme { Home(state, false, {}, {}, watched, pending) } }
+        app.onNodeWithText("Discover film").assertDoesNotExist()
+        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.runOnIdle { watched = emptySet() }
+        val first = dailyFeatured(catalog.items, LocalDate.now()).first()
+        val featuredTitle = hasText(first.title) and hasAnyAncestor(hasTestTag("featured-picks"))
+        app.onNode(featuredTitle).assertIsDisplayed()
+        app.runOnIdle { watched = setOf("${first.id}:yt:old-provider") }
+        app.onNode(featuredTitle).assertDoesNotExist()
+        app.onNodeWithText("Discover film").assertExists()
+        app.runOnIdle { watched = catalog.items.map { it.id }.toSet() }
+        app.onNodeWithText("Discover film").assertDoesNotExist()
+        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.runOnIdle { watched = null; pending = false }
+        app.onNodeWithTag("featured-picks").assertDoesNotExist()
+        app.onNodeWithText("New to the archive").assertIsDisplayed()
+    }
 }
