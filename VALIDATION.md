@@ -508,3 +508,19 @@ screenshots remain in ignored local build/artifact directories.
   with a real signed-in account. The phone remains disconnected: alpha19 is built
   but not installed or physically tested. No real watched/rating/review entries
   were changed. Ignored screenshots are under artifacts/watched-cards-*.
+
+## Alpha 19 physical phone check — 2026-11-02
+
+- Installed versionCode 19 / 0.1.0-alpha19 in place on the reconnected Nothing
+  A063. The existing sign-in and 11,600 XPOP header remained available. No app
+  data was cleared and no instrumentation APK ran on the phone.
+- Home loaded the account's watched history: Op zen Hollands and Holi Shit showed
+  visible Watched poster badges, while unfinished Bound By Movement retained its
+  progress indicator. The daily featured pick was Reborn (Nathan Jones feat.
+  Bastille), replacing the earlier unfiltered Capstone Verky BTS pick.
+- Searching Op zen Hollands showed its Watched badge. Opening the title offered
+  Rewatch despite its old resume checkpoint. Home and Search screenshots were
+  visually inspected and remain in ignored artifacts/phone-alpha19-* files.
+- Returned to Home without starting playback or changing watched, rating, review,
+  or saved-list records. This verifies the observed films and phone, not every
+  account/title combination or physical Android TV hardware.
