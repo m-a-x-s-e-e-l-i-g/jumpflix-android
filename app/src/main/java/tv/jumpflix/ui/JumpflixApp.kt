@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -88,6 +89,8 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     val account by model.account.collectAsStateWithLifecycle()
     val xpop by model.xpop.collectAsStateWithLifecycle()
     val interaction by model.interaction.collectAsStateWithLifecycle()
+    val watched = xpop.watched?.takeIf { account.profile?.id != null && xpop.ownerId == account.profile?.id }
+    val watchedFilms = remember(watched) { watchedTitleIds(watched.orEmpty()) }
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var trail by rememberSaveable(stateSaver = BrowseTrailSaver) { mutableStateOf(BrowseTrail()) }
     val profileStates = rememberSaveableStateHolder()
@@ -182,7 +185,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                     if (personKey != null) {
                         val person = currentPerson
                         if (person != null) profileStates.SaveableStateProvider(person.key) {
-                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::selectFilm)
+                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::selectFilm, watchedFilms)
                         }
                         else Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Text(if (state.loading) "Loading profile…" else "This profile is unavailable in the current catalog.", color = Muted)
@@ -196,12 +199,12 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                         }
                     } else when (destination) {
                         Destination.Home -> Home(state, television, ::selectFilm, model::refresh, when {
-                            account.profile != null -> xpop.takeIf { it.ownerId == account.profile?.id }?.watched
+                            account.profile != null -> watched
                             account.loading || account.error != null -> null
                             else -> emptySet()
                         }, account.loading || xpop.loading)
-                        Destination.Search -> Search(state, people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile, model::refreshMusic)
-                        Destination.Library -> Library(state, television, ::selectFilm)
+                        Destination.Search -> Search(state, people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile, model::refreshMusic, watchedFilms)
+                        Destination.Library -> Library(state, television, watchedFilms, ::selectFilm)
                         Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
                         Destination.About -> About(state, television, model::refresh)
                     }
@@ -263,6 +266,7 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
         }
     }
     val featured = remember(all, day, watched) { watched?.let { dailyFeatured(all, day, it) }.orEmpty() }
+    val watchedFilms = remember(watched) { watchedTitleIds(watched.orEmpty()) }
     var archiveSeed by rememberSaveable(day.toEpochDay()) { mutableIntStateOf(day.toEpochDay().toInt()) }
     val archive = remember(all, archiveSeed) { all.shuffled(Random(archiveSeed)) }
     if (all.isEmpty()) {
@@ -278,15 +282,15 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
         }
         val continueIds = state.progress.filter { it.inProgress }.map { it.itemId }.distinct()
         val continuing = continueIds.mapNotNull { id -> all.find { it.id == id } }
-        if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, select) }
-        item(key = "recent") { FilmRow("New to the archive", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, select) }
-        item(key = "all") { FilmRow("Explore the archive", archive, tv, state.progress, select) { archiveSeed++ } }
+        if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, watchedFilms, select) }
+        item(key = "recent") { FilmRow("New to the archive", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, watchedFilms, select) }
+        item(key = "all") { FilmRow("Explore the archive", archive, tv, state.progress, watchedFilms, select) { archiveSeed++ } }
         val docs = all.filter { it.category == "documentary" }
-        if (docs.isNotEmpty()) item(key = "docs") { FilmRow("Stories behind the movement", docs, tv, state.progress, select) }
+        if (docs.isNotEmpty()) item(key = "docs") { FilmRow("Stories behind the movement", docs, tv, state.progress, watchedFilms, select) }
         val series = all.filter { it.type == "series" }
-        if (series.isNotEmpty()) item(key = "series") { FilmRow("One more episode", series, tv, state.progress, select) }
+        if (series.isNotEmpty()) item(key = "series") { FilmRow("One more episode", series, tv, state.progress, watchedFilms, select) }
         val classics = all.filter { (it.year?.toIntOrNull() ?: Int.MAX_VALUE) <= 2015 }
-        if (classics.isNotEmpty()) item(key = "classics") { FilmRow("Where it all began", classics, tv, state.progress, select) }
+        if (classics.isNotEmpty()) item(key = "classics") { FilmRow("Where it all began", classics, tv, state.progress, watchedFilms, select) }
     }
 }
 
@@ -320,7 +324,7 @@ private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) ->
 }
 
 @Composable
-private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progress: List<Progress>, select: (CatalogItem) -> Unit,
+private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progress: List<Progress>, watched: Set<String>, select: (CatalogItem) -> Unit,
     randomize: (() -> Unit)? = null) {
     val row = rememberLazyListState()
     var shuffleCount by remember { mutableIntStateOf(0) }
@@ -337,19 +341,24 @@ private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progre
         }
         LazyRow(state = row, modifier = Modifier.testTag("film-row-$title"), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             items(films, key = { it.id }) { item ->
-                FilmCard(item, tv, Modifier.width(if (tv) 136.dp else 128.dp), progress.firstOrNull { it.itemId == item.id }) { select(item) }
+                FilmCard(item, tv, Modifier.width(if (tv) 136.dp else 128.dp), progress.firstOrNull { it.itemId == item.id }, item.id in watched) { select(item) }
             }
         }
     }
 }
 
 @Composable
-internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, onClick: () -> Unit) {
+internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, watched: Boolean = false, onClick: () -> Unit) {
     val content: @Composable ColumnScope.() -> Unit = {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Surface)) {
             AsyncImage(item.thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             if (item.paid || !item.available) Text(if (!item.available) "UNAVAILABLE" else "PAID", color = Ink, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Background.copy(alpha = 0.85f), RoundedCornerShape(4.dp)).padding(5.dp))
-            if (progress?.inProgress == true && progress.durationMs > 0) {
+            if (watched) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Background.copy(alpha = .95f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(14.dp), tint = Ink)
+                Text("Watched", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            }
+            if (!watched && progress?.inProgress == true && progress.durationMs > 0) {
                 LinearProgressIndicator(progress = { (progress.positionMs.toFloat() / progress.durationMs).coerceIn(0f, 1f) }, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp), color = Accent, trackColor = Surface)
             }
         }
@@ -359,15 +368,15 @@ internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modif
         }
     }
     if (tv) {
-        LightweightCard(onClick, RoundedCornerShape(10.dp), Background, modifier.semantics { contentDescription = item.title },
+        LightweightCard(onClick, RoundedCornerShape(10.dp), Background, modifier.semantics { contentDescription = item.title; if (watched) stateDescription = "Watched" },
             focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, Ink), shape = RoundedCornerShape(10.dp)), content = content)
     } else {
-        Column(modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick).semantics { contentDescription = item.title }, content = content)
+        Column(modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick).semantics { contentDescription = item.title; if (watched) stateDescription = "Watched" }, content = content)
     }
 }
 
 @Composable
-private fun Search(state: CatalogState, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit) {
+private fun Search(state: CatalogState, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit, watched: Set<String>) {
     val all = state.catalog?.items.orEmpty()
     val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
@@ -404,7 +413,7 @@ private fun Search(state: CatalogState, people: List<Person>, query: String, cha
         }
         if (peopleMode) {
             gridItems(matchingPeople, key = { "person:${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { person -> PersonSearchResult(person, tv, profile) }
-        } else gridItems(results, key = { it.id }) { film -> FilmCard(film, tv) { select(film) } }
+        } else gridItems(results, key = { it.id }) { film -> FilmCard(film, tv, watched = film.id in watched) { select(film) } }
         if ((peopleMode && matchingPeople.isEmpty()) || (!peopleMode && results.isEmpty())) item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (peopleMode) "No people found" else if (state.musicLoading) "Searching song credits…" else "No films found", color = Ink, style = MaterialTheme.typography.titleLarge)
@@ -415,20 +424,20 @@ private fun Search(state: CatalogState, people: List<Person>, query: String, cha
 }
 
 @Composable
-private fun Library(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit) {
+private fun Library(state: CatalogState, tv: Boolean, watched: Set<String>, select: (CatalogItem) -> Unit) {
     val films = state.catalog?.items.orEmpty().filter { it.id in state.saved }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
         PageHeading("Your next movie night", "Your list is saved on this device.")
         Spacer(Modifier.height(24.dp))
         if (films.isEmpty()) EmptyState("Make room for a good film", "Tap the bookmark on a film to save it here.")
-        else FilmGrid(films, tv, select)
+        else FilmGrid(films, tv, watched, select)
     }
 }
 
 @Composable
-private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) -> Unit) {
+private fun FilmGrid(items: List<CatalogItem>, tv: Boolean, watched: Set<String>, select: (CatalogItem) -> Unit) {
     LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), modifier = Modifier.testTag("film-grid"), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        gridItems(items, key = { it.id }) { item -> FilmCard(item, tv) { select(item) } }
+        gridItems(items, key = { it.id }) { item -> FilmCard(item, tv, watched = item.id in watched) { select(item) } }
     }
 }
 

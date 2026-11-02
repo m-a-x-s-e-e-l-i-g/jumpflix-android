@@ -36,4 +36,9 @@ class HomePicksTest {
         assertEquals(original, dailyFeatured(films, day, setOf("${original[0].id}0:yt:neighbor", "series:1:ep:video")))
         assertTrue(dailyFeatured(films, day, films.map { it.id }.toSet()).isEmpty())
     }
+
+    @Test fun `poster badges normalize movie providers without treating an episode as a watched series`() {
+        assertEquals(setOf("movie:42", "movie:420", "series:2"), watchedTitleIds(setOf("movie:42", "movie:42:yt:old",
+            "movie:420:hls:https://video.example/film.m3u8", "series:1:ep:video", "series:2")))
+    }
 }

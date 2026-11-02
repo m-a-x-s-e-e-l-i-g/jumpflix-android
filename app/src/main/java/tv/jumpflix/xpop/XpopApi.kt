@@ -49,12 +49,12 @@ class XpopApi(private val baseUrl: String, private val publicKey: String,
         return XpopSummary(overview.optLong("watched_items").coerceAtLeast(0), overview.optLong("ratings_count").coerceAtLeast(0), overview.optLong("reviews_count").coerceAtLeast(0), units)
     }
 
-    fun watchedMovies(session: AuthSession): Set<String> {
+    fun watchedItems(session: AuthSession): Set<String> {
         val watched = mutableSetOf<String>()
         var offset = 0
         do {
             val rows = JSONArray(request(session, "watch_history", own(session) + mapOf("select" to "media_id",
-                "media_id" to "like.movie:*", "is_watched" to "eq.true", "status" to "eq.active",
+                "is_watched" to "eq.true", "status" to "eq.active",
                 "order" to "media_id.asc", "offset" to offset.toString(), "limit" to "500")))
             for (index in 0 until rows.length()) watched.add(rows.getJSONObject(index).getString("media_id"))
             offset += rows.length()

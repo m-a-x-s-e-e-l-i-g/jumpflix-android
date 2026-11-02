@@ -48,7 +48,7 @@ class XpopRepository private constructor(context: Context) {
             mutable.update { if (it.ownerId == owner) it.copy(summary = result.first,
                 reward = if (result.second > 0) XpopReward(++rewardId, result.second, "Watched") else it.reward) else it }
             try {
-                val watched = accounts.authenticated(owner) { api.watchedMovies(it) + queue.forOwner(owner).map { pending -> pending.mediaId } }
+                val watched = accounts.authenticated(owner) { api.watchedItems(it) + queue.forOwner(owner).map { pending -> pending.mediaId } }
                 mutable.update { if (it.ownerId == owner) it.copy(watched = watched, loading = false) else it }
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) { mutable.update { if (it.ownerId == owner) it.copy(loading = false, error = "Your watched history could not refresh.") else it } }

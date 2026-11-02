@@ -30,7 +30,7 @@ import tv.jumpflix.data.*
 
 @Composable
 internal fun PersonProfileScreen(person: Person, films: List<CatalogItem>, tv: Boolean, cached: Boolean,
-    select: (CatalogItem) -> Unit) {
+    select: (CatalogItem) -> Unit, watched: Set<String> = emptySet()) {
     val context = LocalContext.current
     val repository = remember { PersonRepository(context.applicationContext) }
     var links by remember(person.key) { mutableStateOf(PersonLinks()) }
@@ -41,7 +41,7 @@ internal fun PersonProfileScreen(person: Person, films: List<CatalogItem>, tv: B
         links = repository.links(person.key, force = attempt > 0)
         loading = false
     }
-    PersonProfileContent(person, films, tv, cached, links, loading, { attempt++ }, select) { openExternal(context, it) }
+    PersonProfileContent(person, films, tv, cached, links, loading, { attempt++ }, select, { openExternal(context, it) }, watched)
 }
 
 @Composable
@@ -58,7 +58,7 @@ internal fun ProfileMasthead(name: String, tv: Boolean, back: () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PersonProfileContent(person: Person, films: List<CatalogItem>, tv: Boolean, cached: Boolean,
-    links: PersonLinks, loading: Boolean, retry: () -> Unit, select: (CatalogItem) -> Unit, open: (String) -> Unit) {
+    links: PersonLinks, loading: Boolean, retry: () -> Unit, select: (CatalogItem) -> Unit, open: (String) -> Unit, watched: Set<String> = emptySet()) {
     var filter by rememberSaveable(person.key) { mutableStateOf("All credits") }
     val results = remember(person, films, filter) {
         val ids = when (filter) { "Created by" -> person.created; "Featuring" -> person.featured; else -> person.titles }
@@ -97,7 +97,7 @@ internal fun PersonProfileContent(person: Person, films: List<CatalogItem>, tv: 
                 }
             }
         }
-        gridItems(results, key = { it.id }) { film -> FilmCard(film, tv) { select(film) } }
+        gridItems(results, key = { it.id }) { film -> FilmCard(film, tv, watched = film.id in watched) { select(film) } }
         if (results.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) { Text("No matching titles in this catalog.", color = Muted) }
     }
 }

@@ -99,19 +99,21 @@ class XpopApiTest {
         repeat(3) { assertEquals("eq.user-a", server.takeRequest().requestUrl!!.queryParameter("user_id")) }
     }
 
-    @Test fun `featured exclusions read all active completed movie pages for the authenticated user`() {
+    @Test fun `poster status reads all active completed pages for the authenticated user`() {
         server.enqueue(MockResponse().setBody(JSONArray((1..500).map { JSONObject().put("media_id", "movie:$it:yt:video") }).toString()))
-        server.enqueue(MockResponse().setBody("""[{"media_id":"movie:501"}]"""))
-        val watched = api.watchedMovies(session)
-        assertEquals(501, watched.size)
+        server.enqueue(MockResponse().setBody("""[{"media_id":"movie:501"},{"media_id":"series:1"},{"media_id":"series:2:ep:video"}]"""))
+        val watched = api.watchedItems(session)
+        assertEquals(503, watched.size)
         assertTrue("movie:501" in watched)
+        assertTrue("series:1" in watched)
+        assertTrue("series:2:ep:video" in watched)
         repeat(2) { index ->
             val request = server.takeRequest()
             val url = request.requestUrl!!
             assertEquals("GET", request.method)
             assertEquals("Bearer private-access-token", request.getHeader("Authorization"))
             assertEquals("eq.user-a", url.queryParameter("user_id"))
-            assertEquals("like.movie:*", url.queryParameter("media_id"))
+            assertNull(url.queryParameter("media_id"))
             assertEquals("eq.true", url.queryParameter("is_watched"))
             assertEquals("eq.active", url.queryParameter("status"))
             assertEquals("media_id.asc", url.queryParameter("order"))
@@ -122,6 +124,6 @@ class XpopApiTest {
 
     @Test fun `a failed watched history read is not reported as an empty history`() {
         server.enqueue(MockResponse().setResponseCode(403))
-        assertThrows(XpopFailure::class.java) { api.watchedMovies(session) }
+        assertThrows(XpopFailure::class.java) { api.watchedItems(session) }
     }
 }

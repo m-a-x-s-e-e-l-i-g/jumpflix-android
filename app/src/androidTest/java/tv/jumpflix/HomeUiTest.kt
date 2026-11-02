@@ -72,8 +72,10 @@ class HomeUiTest {
         app.runOnIdle { watched = catalog.items.map { it.id }.toSet() }
         app.onNodeWithText("Discover film").assertDoesNotExist()
         app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onAllNodesWithText("Watched", useUnmergedTree = true).onFirst().assertIsDisplayed()
         app.runOnIdle { watched = null; pending = false }
         app.onNodeWithTag("featured-picks").assertDoesNotExist()
+        app.onNodeWithText("Watched", useUnmergedTree = true).assertDoesNotExist()
         app.onNodeWithText("New to the archive").assertIsDisplayed()
     }
 }

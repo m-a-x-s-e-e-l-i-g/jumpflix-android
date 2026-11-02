@@ -94,7 +94,7 @@ internal fun MediaAccountControls(item: CatalogItem, state: MediaAccountState, s
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error); XpopAction("Reload saved activity", tv, !state.busy, action = retry) }
         if (item.type == "movie") {
-            val watched = filmWatched(item.id, item.playback, state.watched)
+            val watched = filmWatched(item.id, state.watched)
             XpopAction(if (watched) "Watched" else "Mark watched · +5 XPOP", tv, !watched && !state.busy, action = markWatched)
         }
         var expanded by remember(item.id, state.ownerId) { mutableStateOf(false) }

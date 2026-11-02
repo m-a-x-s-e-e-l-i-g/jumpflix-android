@@ -14,6 +14,7 @@ class PlaybackDecisionTest {
         assertEquals("Rewatch", action.label)
         assertEquals(0L, action.startSeconds)
         assertEquals("Rewatch", moviePlaybackAction(film, progress, setOf(film.id)).label)
+        assertEquals(MoviePlaybackAction("Rewatch", 0), moviePlaybackAction(film, progress, setOf("${film.id}:yt:previous-source")))
     }
 
     @Test fun `unwatched unfinished films resume and other titles do not affect the decision`() {

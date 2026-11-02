@@ -32,7 +32,7 @@ class PeopleUiTest {
         var selected = ""
         var url = ""
         app.setContent { JumpflixTheme {
-            PersonProfileContent(person, films, false, true, PersonLinks(listOf("alex.example")), false, {}, { selected = it.id }, { url = it })
+            PersonProfileContent(person, films, false, true, PersonLinks(listOf("alex.example")), false, {}, { selected = it.id }, { url = it }, setOf("movie:1"))
         } }
         app.onNodeWithText("Creator & athlete").assertExists()
         app.onNodeWithText("Credits from the saved catalog").assertExists()
@@ -40,12 +40,14 @@ class PeopleUiTest {
         app.runOnIdle { assertEquals("https://www.instagram.com/alex.example/", url) }
         app.onNodeWithText("Created by (1)").performScrollTo().performClick()
         app.onNodeWithTag("person-filmography").performScrollToNode(hasContentDescription("Created film"))
+        app.onNodeWithText("Watched", useUnmergedTree = true).assertIsDisplayed()
         app.onNode(hasContentDescription("Created film") and hasClickAction()).performClick()
         app.runOnIdle { assertEquals("movie:1", selected) }
         app.onNodeWithText("Featured film").assertDoesNotExist()
         app.onNodeWithText("Featuring (1)").performScrollTo().performClick()
         app.onNodeWithTag("person-filmography").performScrollToNode(hasContentDescription("Featured film"))
         app.onNodeWithText("Featured film").assertExists()
+        app.onNodeWithText("Watched", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun tvProfileKeepsFilmographyAvailableWhenSocialLinksFailAndCanRetry() {

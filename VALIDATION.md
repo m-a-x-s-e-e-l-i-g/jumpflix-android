@@ -481,3 +481,30 @@ screenshots remain in ignored local build/artifact directories.
 - The phone disconnected from ADB before installation. Alpha18 is built but was
   not installed or validated with the user's real account on the phone. No watched
   records were created/changed for QA, and no physical TV testing was performed.
+
+## Alpha 19 visible watched posters — 2026-11-02
+
+- The shared browsing card displays a checkmark and Watched label over a dark
+  poster overlay in Home rows, Search, My list, and creator/athlete filmographies.
+  Its accessible watched state updates with the account, without changing the
+  card's title, action, or TV focus border. Watched posters hide stale resume bars;
+  unfinished titles retain their progress indicator. Paid/unavailable labels stay
+  separate at the top of the artwork.
+- The existing owner-scoped paginated history read now includes whole-series and
+  episode records. Movie provider keys normalize to the same film; only an explicit
+  series base watch marks a whole series as watched. One completed episode does not.
+  Cards, featured exclusions, and film Rewatch decisions share this normalization.
+  There are no per-card requests or schema/auth changes.
+- Build, 60 JVM tests, lint with zero errors, and 14 targeted emulator checks pass.
+  Coverage includes movie/series identity, old-provider Rewatch, badge appearance
+  and removal, accessibility state, resume-bar precedence, touch/remote actions,
+  Home status updates, and watched filmography filters. Phone-style and TV-style
+  card fixtures were visually inspected with actual public poster artwork and a
+  paid label; the TV focus outline remains clear.
+- The touch-card check also passed at 1080 × 2400 / density 420, and its portrait
+  fixture was visually inspected. Emulator display settings were restored afterward.
+- A read-only REST query with an unassigned owner and the broadened filters
+  returned 200 with zero rows. This is query-shape validation, not verification
+  with a real signed-in account. The phone remains disconnected: alpha19 is built
+  but not installed or physically tested. No real watched/rating/review entries
+  were changed. Ignored screenshots are under artifacts/watched-cards-*.
