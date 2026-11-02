@@ -31,6 +31,9 @@ class PeopleTest {
         assertTrue(kevin.matches("Franzen kevin"))
         assertFalse(kevin.matches("Kevin another"))
         assertEquals("a-and-b", personSlug(" A & B "))
+        val international = buildPeopleIndex(listOf(first.copy(creators = listOf("A & B", "李明"), starring = emptyList())))
+        assertTrue(international.single { it.name == "A & B" }.matches(peopleSearchTerms("a & b")))
+        assertTrue(international.single { it.name == "李明" }.matches(peopleSearchTerms("李")))
         assertNotEquals(personKey("李明"), personKey("王伟"))
     }
 

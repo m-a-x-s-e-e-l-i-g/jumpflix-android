@@ -17,8 +17,8 @@ android {
         applicationId = "tv.jumpflix.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 21
-        versionName = "0.1.0-alpha21"
+        versionCode = 22
+        versionName = "0.1.0-alpha22"
         buildConfigField("String", "CATALOG_BASE_URL", "\"$catalogBaseUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

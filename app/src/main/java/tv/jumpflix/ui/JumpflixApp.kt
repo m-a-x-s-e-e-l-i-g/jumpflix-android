@@ -96,8 +96,8 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     val profileStates = rememberSaveableStateHolder()
     val people = remember(state.catalog?.items) { buildPeopleIndex(state.catalog?.items.orEmpty()) }
     var accountNavigationVersion by rememberSaveable { mutableIntStateOf(0) }
-    var query by rememberSaveable { mutableStateOf("") }
-    var peopleMode by rememberSaveable { mutableStateOf(false) }
+    val queryState = rememberSaveable { mutableStateOf("") }
+    val peopleModeState = rememberSaveable { mutableStateOf(false) }
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -203,7 +203,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                             account.loading || account.error != null -> null
                             else -> emptySet()
                         }, account.loading || xpop.loading)
-                        Destination.Search -> Search(state, people, query, { query = it }, peopleMode, { peopleMode = it }, television, ::selectFilm, ::openProfile, model::refreshMusic, watchedFilms)
+                        Destination.Search -> Search(state, people, queryState, peopleModeState, television, ::selectFilm, ::openProfile, model::refreshMusic, watchedFilms)
                         Destination.Library -> Library(state, television, watchedFilms, ::selectFilm)
                         Destination.Account -> AccountScreen(account, television, model::signIn, model::signOut, model::restoreAccount, model::beginGoogle, model::cancelGoogle, xpop, model::refreshXpop, navigationVersion = accountNavigationVersion) { destination = Destination.About }
                         Destination.About -> About(state, television, model::refresh)
@@ -269,6 +269,11 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
     val watchedFilms = remember(watched) { watchedTitleIds(watched.orEmpty()) }
     var archiveSeed by rememberSaveable(day.toEpochDay()) { mutableIntStateOf(day.toEpochDay().toInt()) }
     val archive = remember(all, archiveSeed) { all.shuffled(Random(archiveSeed)) }
+    val continuing = remember(all, state.progress, watched) { watched?.let { continueWatching(all, state.progress, it) }.orEmpty() }
+    val recent = remember(all) { all.sortedByDescending { it.addedAt }.take(24) }
+    val docs = remember(all) { all.filter { it.category == "documentary" } }
+    val series = remember(all) { all.filter { it.type == "series" } }
+    val classics = remember(all) { all.filter { (it.year?.toIntOrNull() ?: Int.MAX_VALUE) <= 2015 } }
     if (all.isEmpty()) {
         EmptyState(if (state.loading) "Loading the archive…" else "The archive is taking a break", state.error ?: "Finding films and the people behind them.", if (state.loading) null else refresh)
         return
@@ -280,15 +285,11 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
                 CircularProgressIndicator(Modifier.align(Alignment.Center).size(24.dp), color = Accent, strokeWidth = 2.dp)
             }
         }
-        val continuing = watched?.let { continueWatching(all, state.progress, it) }.orEmpty()
         if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, watchedFilms, select) }
-        item(key = "recent") { FilmRow("New", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, watchedFilms, select) }
+        item(key = "recent") { FilmRow("New", recent, tv, state.progress, watchedFilms, select) }
         item(key = "all") { FilmRow("Explore", archive, tv, state.progress, watchedFilms, select) { archiveSeed++ } }
-        val docs = all.filter { it.category == "documentary" }
         if (docs.isNotEmpty()) item(key = "docs") { FilmRow("Stories behind the movement", docs, tv, state.progress, watchedFilms, select) }
-        val series = all.filter { it.type == "series" }
         if (series.isNotEmpty()) item(key = "series") { FilmRow("One more episode", series, tv, state.progress, watchedFilms, select) }
-        val classics = all.filter { (it.year?.toIntOrNull() ?: Int.MAX_VALUE) <= 2015 }
         if (classics.isNotEmpty()) item(key = "classics") { FilmRow("Where it all began", classics, tv, state.progress, watchedFilms, select) }
     }
 }
@@ -375,23 +376,32 @@ internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-private fun Search(state: CatalogState, people: List<Person>, query: String, changeQuery: (String) -> Unit, peopleMode: Boolean, changePeopleMode: (Boolean) -> Unit, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit, watched: Set<String>) {
+private fun Search(state: CatalogState, people: List<Person>, queryState: MutableState<String>, peopleModeState: MutableState<Boolean>, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit, watched: Set<String>) {
+    var query by queryState
+    var peopleMode by peopleModeState
     val all = state.catalog?.items.orEmpty()
     val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
-    val matchingPeople = remember(people, query) { people.filter { it.matches(query) } }
-    val results = remember(all, state.music, query, filter) { all.filter { it.matches(query, state.music[it.id].orEmpty()) && when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true } } }
+    val matchingPeople = remember(people, query, peopleMode) {
+        if (peopleMode) { val terms = peopleSearchTerms(query); people.filter { it.matches(terms) } } else emptyList()
+    }
+    val results = remember(all, state.music, query, filter, peopleMode) {
+        if (peopleMode) emptyList() else {
+            val terms = catalogSearchTerms(query)
+            all.filter { (when (filter) { "Films" -> it.type == "movie"; "Series" -> it.type == "series"; "Free" -> !it.paid; else -> true }) && it.matches(terms, state.music[it.id].orEmpty()) }
+        }
+    }
     LazyVerticalGrid(columns = GridCells.Adaptive(if (tv) 136.dp else 146.dp), modifier = Modifier.fillMaxSize().testTag(if (peopleMode) "people-results" else "film-grid"),
         contentPadding = PaddingValues(24.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item(key = "search-controls", span = { GridItemSpan(maxLineSpan) }) {
             Column {
                 PageHeading(if (peopleMode) "Creators & athletes" else "Find your next film", if (peopleMode) "Find the people behind the movement." else "Search films, people, and soundtracks.")
                 Spacer(Modifier.height(18.dp))
-                OutlinedTextField(query, changeQuery, label = { Text(if (peopleMode) "Creator or athlete" else "Film, person, or song") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
+                OutlinedTextField(query, { query = it }, label = { Text(if (peopleMode) "Creator or athlete" else "Film, person, or song") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true,
                     shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }), modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
-                    PersonFilter("Films & series", !peopleMode, tv) { changePeopleMode(false) }
-                    PersonFilter("People", peopleMode, tv) { changePeopleMode(true) }
+                    PersonFilter("Films & series", !peopleMode, tv) { peopleMode = false }
+                    PersonFilter("People", peopleMode, tv) { peopleMode = true }
                 }
                 if (!peopleMode) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {

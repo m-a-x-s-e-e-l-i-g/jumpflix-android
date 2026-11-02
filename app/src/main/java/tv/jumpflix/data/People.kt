@@ -5,12 +5,19 @@ import java.text.Normalizer
 import java.util.Locale
 import org.json.JSONArray
 
+private val personMarks = Regex("[\\u0300-\\u036f]")
+private val slugSeparators = Regex("[^a-z0-9]+")
+private val personWords = Regex("\\s+")
+
 /** Matches the website's canonical /people/<slug> normalization. */
 fun personSlug(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFKD)
-    .replace(Regex("[\\u0300-\\u036f]"), "").lowercase(Locale.ROOT).replace("&", " and ")
-    .replace(Regex("[^a-z0-9]+"), "-").trim('-')
+    .replace(personMarks, "").lowercase(Locale.ROOT).replace("&", " and ")
+    .replace(slugSeparators, "-").trim('-')
 
 fun personKey(name: String): String = personSlug(name).ifBlank { "~${name.trim().lowercase(Locale.ROOT)}" }
+
+internal fun peopleSearchTerms(query: String): List<String> = if (query.isBlank()) emptyList()
+    else query.trim().split(personWords).map { personKey(it).removePrefix("~") }
 
 data class Person(val key: String, val name: String, val created: Set<String>, val featured: Set<String>) {
     val titles: Set<String> get() = created + featured
@@ -19,9 +26,9 @@ data class Person(val key: String, val name: String, val created: Set<String>, v
         created.isNotEmpty() -> "Creator"
         else -> "Athlete"
     }
-    fun matches(query: String): Boolean = query.isBlank() || query.trim().split(Regex("\\s+")).all { word ->
-        personKey(name).removePrefix("~").contains(personKey(word).removePrefix("~"))
-    }
+    fun matches(query: String): Boolean = matches(peopleSearchTerms(query))
+    // The index key already contains the canonical normalized name.
+    internal fun matches(terms: List<String>): Boolean = terms.all { key.removePrefix("~").contains(it) }
 }
 
 fun buildPeopleIndex(items: List<CatalogItem>): List<Person> {

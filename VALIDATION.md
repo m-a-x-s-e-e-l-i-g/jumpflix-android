@@ -548,3 +548,46 @@ screenshots remain in ignored local build/artifact directories.
   ignored artifacts/phone-alpha20-home.png screenshot.
 - No playback or account-history changes were performed. Physical Android TV
   hardware and every account/title combination were not tested.
+
+## Alpha 22 lighter search and browsing — 2026-11-02
+
+- Film/song search text is normalized once during background catalog/credit
+  loading. Queries are normalized once per edit, and people matching reuses the
+  existing canonical index keys. Search evaluates only its visible mode. Query
+  state remains saved at the navigation root but is read inside Search, preserving
+  Back navigation without invalidating the surrounding app UI on each keystroke.
+- Home's recent/category/continuing groups are remembered by their actual inputs.
+  Initial saved-list/history reads and history reloads run on Dispatchers.IO.
+  Save mutations keep their existing ordering. Poster loading already uses Coil's
+  layout constraints; no new image policy or reduced-quality artwork was added.
+- The new compatibility/performance test compares the old matcher with the new
+  matcher over 329 titles, 1,407 people, and 17 incremental queries. All result IDs
+  must match, including songs, accents, blank queries, and multiword input. Separate
+  checks cover copied/renamed film and music data, ampersands, and non-Latin names.
+  Timed results are consumed through a volatile sink; there is no brittle speed
+  threshold in the tests. Five-sample median timings in the final host JVM run:
+
+  | Matching workload | Previous matcher | Current matcher |
+  | --- | ---: | ---: |
+  | Films, all 17 queries | 66.13 ms | 1.62 ms |
+  | People, all 17 queries | 34.61 ms | 2.98 ms |
+
+  These measure matching work with prepared data, not overall app latency or
+  first-load time. Baseline and final logs remain in the ignored tool cache.
+- On the physical Nothing A063, a fixed ADB typing sequence (kevin franzen) was
+  recorded with dumpsys gfxinfo in three runs before and after the first pass.
+  The 95th-percentile frame buckets were 400/450/450 ms before and 121/93/101 ms
+  after, giving medians of 450 and 101 ms. Frame counts and jank percentages varied;
+  this supports a reduction in long typing frames, not a general FPS or low-end
+  hardware guarantee. Raw captures remain in ignored artifacts/perf-* files.
+- The first alpha22 pass was installed in place on that phone, with sign-in and
+  local data preserved. The phone disconnected before the final refinements
+  (background search preparation and tighter state-read scope) could be installed
+  or measured. The final APK therefore still needs reinstallation and phone QA.
+- Final app/test builds, lint with zero errors, and all 63 JVM tests pass. All 19
+  targeted emulator tests pass, including live credited-song search, query/profile
+  Back navigation, saving, watched posters, Continue Watching, and episode actions.
+  This run used two virtual CPUs and 1,536 MB configured RAM (about 1,505,428 kB
+  visible to Android). It is constrained-emulator validation, not a physical budget
+  phone or Android TV test. No account-history mutations or instrumentation APK
+  installation on the physical phone were performed.

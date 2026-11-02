@@ -73,9 +73,10 @@ data class CatalogItem(
     val seasons: List<Season>,
 ) {
     val metadata: String get() = listOfNotNull(year, duration, if (type == "series") "Series" else category?.replace('-', ' ')?.replaceFirstChar { it.uppercase() }).joinToString("  ·  ")
-    fun matches(query: String, music: List<MusicCredit> = emptyList()): Boolean = normalizedSearch(query).trim().split(Regex("\\s+")).all { word ->
-        (listOf(title, description, creators.joinToString(" "), starring.joinToString(" ")) + music.flatMap { listOf(it.title, it.artist) })
-            .any { normalizedSearch(it).contains(word) }
+    private val searchText = normalizedSearch(listOf(title, description, creators.joinToString(" "), starring.joinToString(" ")).joinToString(" "))
+    fun matches(query: String, music: List<MusicCredit> = emptyList()): Boolean = matches(catalogSearchTerms(query), music)
+    internal fun matches(terms: List<String>, music: List<MusicCredit> = emptyList()): Boolean = terms.all { word ->
+        searchText.contains(word) || music.any { it.searchText.contains(word) }
     }
 
     companion object {
@@ -99,8 +100,11 @@ data class CatalogItem(
     }
 }
 
-private fun normalizedSearch(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
-    .replace(Regex("\\p{M}+"), "").lowercase(java.util.Locale.ROOT)
+private val searchMarks = Regex("\\p{M}+")
+private val searchWords = Regex("\\s+")
+internal fun catalogSearchTerms(query: String): List<String> = normalizedSearch(query).trim().split(searchWords)
+internal fun normalizedSearch(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
+    .replace(searchMarks, "").lowercase(java.util.Locale.ROOT)
 
 fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
 fun JSONObject.strings(key: String): List<String> = optJSONArray(key)?.let { array -> (0 until array.length()).map { array.getString(it) } } ?: emptyList()

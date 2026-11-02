@@ -25,6 +25,12 @@ class MusicSearchTest {
         assertTrue(film.matches("peanutbutter eddie", music))
         assertFalse(film.matches("ete paris"))
         assertFalse(film.matches("ete unrelated", music))
+        val renamed = film.copy(title = "Fresh replacement", description = "", creators = emptyList(), starring = emptyList())
+        assertTrue(renamed.matches("fresh replacement"))
+        assertFalse(renamed.matches("peanutbutter"))
+        val changedCredit = listOf(music.single().copy(title = "New song", artist = "Other artist"))
+        assertTrue(film.matches("new song", changedCredit))
+        assertFalse(film.matches("ete paris", changedCredit))
         assertTrue(musicSearchIndex(JSONArray().put(row(1)).put(row(2))).getValue("movie:314").size == 1)
     }
 

@@ -14,6 +14,12 @@ The visual reference is [Nuvio](https://github.com/NuvioMedia/NuvioTV): cinemati
 artwork, a large featured film, horizontal browsing rows, dark surfaces, and clear
 remote focus. This is a focused JUMPFLIX client with selected upstream reuse.
 
+Search prepares normalized film and song text during background data loading,
+normalizes each query once, and reuses canonical people keys. Only the visible
+search mode is matched; typing updates Search without rebuilding the app shell.
+Home reuses its sorted/grouped rows, and local library/history reads run off the
+UI thread. These optimizations apply automatically, without a separate device mode.
+
 Home features six random eligible films per local calendar day, stable throughout
 that day. Signed-in featured picks exclude completed account watches across video
 providers, including completions waiting to sync. Features wait for the account's

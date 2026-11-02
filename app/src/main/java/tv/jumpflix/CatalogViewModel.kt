@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tv.jumpflix.data.*
 import tv.jumpflix.auth.AccountProfile
 import tv.jumpflix.auth.AccountRepository
@@ -47,12 +49,14 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     private val accountMutable = MutableStateFlow(AccountState())
     val account = accountMutable.asStateFlow()
     private var authGeneration = 0
-    private val mutable = MutableStateFlow(CatalogState(saved = library.saved(), progress = library.progress()))
+    private val mutable = MutableStateFlow(CatalogState())
     val state = mutable.asStateFlow()
 
     init {
         restoreAccount()
         viewModelScope.launch {
+            val local = withContext(Dispatchers.IO) { library.saved() to library.progress() }
+            mutable.update { it.copy(saved = local.first, progress = local.second) }
             repository.saved()?.let { catalog -> mutable.update { it.copy(catalog = catalog) } }
             musicRepository.saved()?.let { music -> mutable.update { it.copy(music = music) } }
             refresh()
@@ -106,7 +110,12 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     }
     fun closeDetail() { mutable.update { it.copy(selected = null, detailLoading = false, detailError = null) } }
     fun toggleSaved(id: String) { mutable.update { it.copy(saved = library.toggle(id)) } }
-    fun reloadLibrary() { mutable.update { it.copy(progress = library.progress()) } }
+    fun reloadLibrary() {
+        viewModelScope.launch {
+            val progress = withContext(Dispatchers.IO) { library.progress() }
+            mutable.update { it.copy(progress = progress) }
+        }
+    }
 
     fun restoreAccount() {
         if (accountMutable.value.loading || accountMutable.value.awaitingGoogle) return
