@@ -45,4 +45,28 @@ class CatalogTest {
         assertTrue(Progress("a", "a", "A", 30_000, 100_000, 0).inProgress)
         assertFalse(Progress("a", "a", "A", 99_000, 100_000, 0).inProgress)
     }
+
+    @Test fun `visible catalog hides unavailable titles while retaining raw data and paid releases`() {
+        val seed = Catalog.parse(java.io.File("src/main/assets/catalog-seed.json").readText())
+        val film = seed.items.first { it.type == "movie" && it.available }
+        val hidden = film.copy(id = "movie:999", available = false)
+        val paid = film.copy(id = "movie:998", paid = true)
+        val series = seed.items.first { it.type == "series" && it.available }
+        val catalog = Catalog(listOf(film, hidden, paid, series, series.copy(id = "series:999", available = false)), "fixture")
+        assertEquals(listOf(film, paid, series), catalog.visibleItems)
+        assertEquals(5, catalog.items.size)
+        assertTrue(hidden in catalog.items)
+        assertEquals(listOf(hidden.copy(available = true)), catalog.copy(items = listOf(hidden.copy(available = true))).visibleItems)
+    }
+
+    @Test fun `available seasons hide missing sources and empty seasons without renumbering episodes`() {
+        val series = Catalog.parse(java.io.File("src/main/assets/catalog-seed.json").readText()).items.first { it.type == "series" }
+        val episode = Episode("available", "Available episode", 7, PlaybackSource("external", "https://video.example/film"))
+        val missing = Episode("missing", "Unavailable episode", 2, null)
+        val seasons = listOf(Season(1, "Season 1", listOf(missing, episode)), Season(2, "Extras", listOf(missing)))
+        val item = series.copy(seasons = seasons)
+        assertEquals(listOf(Season(1, "Season 1", listOf(episode))), item.availableSeasons)
+        assertEquals(seasons, item.seasons)
+        assertEquals(7, item.availableSeasons.single().episodes.single().position)
+    }
 }

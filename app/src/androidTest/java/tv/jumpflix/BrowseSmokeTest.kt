@@ -8,6 +8,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.lifecycle.ViewModelProvider
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.*
+import tv.jumpflix.data.*
 
 /** Exercises the real bundled catalog, detail screen, local library, and search UI. */
 @OptIn(ExperimentalTestApi::class)
@@ -122,6 +124,52 @@ class BrowseSmokeTest {
         app.onNodeWithTag("title-details").performScrollToNode(hasTestTag("episode-$extras"))
         app.onNodeWithTag("episode-$extras").assertExists()
         app.onNodeWithTag("episode-$firstSeasonEpisode").assertDoesNotExist()
+        app.onNodeWithTag("title-details").performScrollToIndex(0)
+        app.onNode(hasText("Reviews") and hasClickAction()).activate()
+        app.onNode(hasText("Reviews") and isFocusable() and !hasClickAction()).assertIsDisplayed()
+    }
+
+    @Test fun unavailableTitlesStayOutOfSearchAndSavedBrowsingWithoutDeletingSavedIds() {
+        awaitHome()
+        lateinit var model: CatalogViewModel
+        lateinit var hidden: CatalogItem
+        var originallySaved = false
+        app.runOnIdle {
+            model = ViewModelProvider(app.activity)[CatalogViewModel::class.java]
+            hidden = model.state.value.catalog!!.items.first { !it.available }
+            originallySaved = hidden.id in model.state.value.saved
+            model.select(hidden)
+            assertNull(model.state.value.selected)
+            if (!originallySaved) model.toggleSaved(hidden.id)
+        }
+        try {
+            app.onAllNodesWithContentDescription("Search").filter(hasClickAction()).onFirst().activate()
+            app.onNode(hasSetTextAction()).performTextInput(hidden.title)
+            app.onNode(hasSetTextAction()).performImeAction()
+            app.onAllNodesWithContentDescription(hidden.title).assertCountEquals(0)
+            app.onAllNodesWithContentDescription("My list").filter(hasClickAction()).onFirst().activate()
+            app.onAllNodesWithContentDescription(hidden.title).assertCountEquals(0)
+            app.runOnIdle { assertTrue(hidden.id in model.state.value.saved) }
+        } finally {
+            app.runOnIdle { if (!originallySaved) model.toggleSaved(hidden.id) }
+        }
+    }
+
+    @Test fun seriesHidesMissingSourcesAndEmptySeasonsAndKeepsTheReviewsShortcutCorrect() {
+        awaitHome()
+        app.runOnIdle {
+            val model = ViewModelProvider(app.activity)[CatalogViewModel::class.java]
+            val series = model.state.value.catalog!!.visibleItems.first { it.id == "series:75" }
+            val source = series.seasons.first().episodes.first().playback!!
+            model.select(series.copy(slug = "qa-availability-series", seasons = listOf(
+                Season(1, "Season 1", listOf(Episode("missing", "Unavailable episode", 2, null), Episode("playable", "Playable episode", 7, source))),
+                Season(2, "Empty extras", listOf(Episode("also-missing", "Unavailable extra", 1, null))))))
+        }
+        app.onNode(hasText("Episodes") and hasClickAction()).activate()
+        app.onNodeWithTag("episode-playable").assertExists()
+        app.onNodeWithTag("episode-missing").assertDoesNotExist()
+        app.onNodeWithText("Empty extras").assertDoesNotExist()
+        app.onNodeWithText("1 episode").assertExists()
         app.onNodeWithTag("title-details").performScrollToIndex(0)
         app.onNode(hasText("Reviews") and hasClickAction()).activate()
         app.onNode(hasText("Reviews") and isFocusable() and !hasClickAction()).assertIsDisplayed()

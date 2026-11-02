@@ -94,7 +94,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var trail by rememberSaveable(stateSaver = BrowseTrailSaver) { mutableStateOf(BrowseTrail()) }
     val profileStates = rememberSaveableStateHolder()
-    val people = remember(state.catalog?.items) { buildPeopleIndex(state.catalog?.items.orEmpty()) }
+    val people = remember(state.catalog?.visibleItems) { buildPeopleIndex(state.catalog?.visibleItems.orEmpty()) }
     var accountNavigationVersion by rememberSaveable { mutableIntStateOf(0) }
     val queryState = rememberSaveable { mutableStateOf("") }
     val peopleModeState = rememberSaveable { mutableStateOf(false) }
@@ -118,7 +118,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
         trail = trail.back()
         val film = trail.film
         if (film != null) {
-            val parent = state.catalog?.items?.firstOrNull { it.id == film }
+            val parent = state.catalog?.visibleItems?.firstOrNull { it.id == film }
             if (parent != null) model.select(parent) else { trail = BrowseTrail(); model.closeDetail() }
         } else if (trail.routes.isEmpty()) model.closeDetail()
     }
@@ -138,7 +138,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     }
     LaunchedEffect(state.catalog, initialSlug) {
         if (!deepLinkHandled && initialSlug != null) {
-            state.catalog?.items?.firstOrNull { it.slug == initialSlug }?.let {
+            state.catalog?.visibleItems?.firstOrNull { it.slug == initialSlug }?.let {
                 model.select(it)
                 deepLinkHandled = true
             }
@@ -185,7 +185,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                     if (personKey != null) {
                         val person = currentPerson
                         if (person != null) profileStates.SaveableStateProvider(person.key) {
-                            PersonProfileScreen(person, state.catalog?.items.orEmpty(), television, state.cached, ::selectFilm, watchedFilms)
+                            PersonProfileScreen(person, state.catalog?.visibleItems.orEmpty(), television, state.cached, ::selectFilm, watchedFilms)
                         }
                         else Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Text(if (state.loading) "Loading profile…" else "This profile is unavailable in the current catalog.", color = Muted)
@@ -254,7 +254,7 @@ internal fun PhoneMasthead(summary: XpopSummary?, account: () -> Unit) {
 @Composable
 internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Unit, refresh: () -> Unit,
     watched: Set<String>? = emptySet(), watchedPending: Boolean = watched == null) {
-    val all = state.catalog?.items.orEmpty()
+    val all = state.catalog?.visibleItems.orEmpty()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val day by produceState(LocalDate.now(), lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -379,7 +379,7 @@ internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modif
 private fun Search(state: CatalogState, people: List<Person>, queryState: MutableState<String>, peopleModeState: MutableState<Boolean>, tv: Boolean, select: (CatalogItem) -> Unit, profile: (String) -> Unit, retryMusic: () -> Unit, watched: Set<String>) {
     var query by queryState
     var peopleMode by peopleModeState
-    val all = state.catalog?.items.orEmpty()
+    val all = state.catalog?.visibleItems.orEmpty()
     val keyboard = LocalSoftwareKeyboardController.current
     var filter by rememberSaveable { mutableStateOf("All") }
     val matchingPeople = remember(people, query, peopleMode) {
@@ -434,7 +434,7 @@ private fun Search(state: CatalogState, people: List<Person>, queryState: Mutabl
 
 @Composable
 private fun Library(state: CatalogState, tv: Boolean, watched: Set<String>, select: (CatalogItem) -> Unit) {
-    val films = state.catalog?.items.orEmpty().filter { it.id in state.saved }
+    val films = state.catalog?.visibleItems.orEmpty().filter { it.id in state.saved }
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 24.dp)) {
         PageHeading("Your next movie night", "Your list is saved on this device.")
         Spacer(Modifier.height(24.dp))
@@ -460,8 +460,9 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
     val creditsFocus = remember(item.id) { FocusRequester() }
     val reviewsFocus = remember(item.id) { FocusRequester() }
     val episodesFocus = remember(item.id) { FocusRequester() }
-    var seasonNumber by rememberSaveable(item.id) { mutableIntStateOf(item.seasons.firstOrNull()?.number ?: 1) }
-    val season = item.seasons.firstOrNull { it.number == seasonNumber } ?: item.seasons.firstOrNull()
+    val seasons = item.availableSeasons
+    var seasonNumber by rememberSaveable(item.id) { mutableIntStateOf(seasons.firstOrNull()?.number ?: 1) }
+    val season = seasons.firstOrNull { it.number == seasonNumber } ?: seasons.firstOrNull()
     var expandedEpisode by rememberSaveable(item.id, season?.number) { mutableStateOf<String?>(null) }
     val reviewsIndex = if (item.type == "series") 2 + (season?.episodes?.size?.takeIf { it > 0 } ?: 1) else 1
     val detailList = rememberLazyListState()
@@ -519,7 +520,7 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
         if (item.type == "series") {
             item(key = "season-selector") {
                 Box(Modifier.focusRequester(episodesFocus).focusGroup()) {
-                    SeasonSelector(item.seasons, season, tv) { seasonNumber = it }
+                    SeasonSelector(seasons, season, tv) { seasonNumber = it }
                 }
             }
             items(season?.episodes.orEmpty(), key = { "episode-${season?.number}-${it.id}" }) { episode ->
@@ -573,7 +574,7 @@ private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
         item { Brand() }
         item { Text("Parkour cinema,\nwherever you watch.", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineLarge) }
         item { Text("Films, documentaries, and movement stories from the global parkour community. Creators keep their credit, their views, and control of their work.", color = Muted, style = MaterialTheme.typography.bodyLarge) }
-        item { Text("${state.catalog?.items?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }
+        item { Text("${state.catalog?.visibleItems?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }
         item { Action(if (state.loading) "Refreshing…" else "Refresh catalog", true, tv, onClick = refresh) }
         state.error?.let { error -> item { Text(error, color = Muted) } }
         item { Text("Sign in to earn XPOP, rate titles, and post reviews with your existing JUMPFLIX account. Completed watches sync to the website. Saved titles and resume positions stay on this device; casting is still to come.", color = Muted) }

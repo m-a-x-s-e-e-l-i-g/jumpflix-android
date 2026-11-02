@@ -73,6 +73,8 @@ data class CatalogItem(
     val seasons: List<Season>,
 ) {
     val metadata: String get() = listOfNotNull(year, duration, if (type == "series") "Series" else category?.replace('-', ' ')?.replaceFirstChar { it.uppercase() }).joinToString("  ·  ")
+    val availableSeasons: List<Season> = seasons.map { season -> season.copy(episodes = season.episodes.filter { it.playback != null }) }
+        .filter { it.episodes.isNotEmpty() }
     private val searchText = normalizedSearch(listOf(title, description, creators.joinToString(" "), starring.joinToString(" ")).joinToString(" "))
     fun matches(query: String, music: List<MusicCredit> = emptyList()): Boolean = matches(catalogSearchTerms(query), music)
     internal fun matches(terms: List<String>, music: List<MusicCredit> = emptyList()): Boolean = terms.all { word ->
@@ -111,6 +113,7 @@ fun JSONObject.strings(key: String): List<String> = optJSONArray(key)?.let { arr
 fun JSONObject.objects(key: String): List<JSONObject> = optJSONArray(key)?.let { array -> (0 until array.length()).map { array.getJSONObject(it) } } ?: emptyList()
 
 data class Catalog(val items: List<CatalogItem>, val generatedAt: String) {
+    val visibleItems: List<CatalogItem> = items.filter { it.available }
     companion object {
         fun parse(text: String): Catalog {
             val json = JSONObject(text)

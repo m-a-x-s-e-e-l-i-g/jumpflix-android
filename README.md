@@ -33,6 +33,11 @@ then Explore. Explore's Randomize button reshuffles its titles and
 returns that row to its beginning. Saved catalogs remain usable without an offline
 banner on Home; catalog refresh/status stays available in About.
 
+Unavailable titles stay out of Home, Search, My list, and people filmographies.
+Episodes without a playback source and empty seasons are hidden, preserving the
+original episode numbers. Saved IDs and resume history remain intact, so titles
+can return when the catalog marks them available again. Paid titles remain visible.
+
 ## First alpha
 
 - Home, discovery rows, title/creator/athlete/song/artist search, and film/series details.

@@ -607,3 +607,27 @@ screenshots remain in ignored local build/artifact directories.
   remain in ignored artifacts/perf-final-phone-* and artifacts/phone-alpha22-*.
 - Returned the app to Home without playback or watched/list/rating/review writes.
   Final phone installation is complete; other hardware still needs testing.
+
+## Alpha 23 hide unavailable content — 2026-11-03
+
+- Home (including featured and Continue Watching), Search/song results, My list,
+  people discovery, and profile filmographies use the same available-title list.
+  The seed retains all 329 raw records while exposing 327 available titles.
+  Paid titles remain visible; availability follows catalog metadata, without
+  probing providers or treating temporary network failures as removals.
+- Series omit episodes without playback sources and seasons left empty by that
+  filter. Original episode positions and season names/numbers are preserved.
+  The Reviews shortcut uses the filtered episode count.
+- Saved IDs and resume history are retained. Unavailable deep links/selections
+  cannot open details, and a refreshed catalog closes a newly unavailable title.
+  A title can reappear if a later catalog marks it available again.
+- Debug app/test builds, all 65 JVM tests, and lint pass (zero errors, 41 advisory
+  warnings). Regression fixtures cover hidden/paid/restored titles, source-less
+  episodes, empty seasons, original numbering, and retained raw catalog data.
+- All 22 targeted instrumented checks pass on the Android TV API34 emulator
+  configured with two virtual CPUs and 1,536 MB RAM. New checks cover hidden
+  Home/Continue Watching titles, Search/My list with saved IDs retained, and
+  filtered episodes/empty seasons with a working Reviews shortcut. Existing
+  phone/TV layout, people navigation, watched posters, and song search checks pass.
+- The physical phone was absent from ADB; alpha23 has not been installed or
+  checked on it. No physical Android TV validation was performed.

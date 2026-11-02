@@ -22,7 +22,7 @@ class HomeUiTest {
     private fun checkHome(tv: Boolean) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val catalog = Catalog.parse(context.assets.open("catalog-seed.json").bufferedReader().use { it.readText() })
-        val films = catalog.items.take(36)
+        val films = catalog.visibleItems.take(36)
         val continuing = films.first()
         val state = CatalogState(catalog = catalog.copy(items = films), loading = false, cached = true, error = "Offline",
             progress = listOf(Progress(continuing.id, continuing.id, continuing.title, 50_000, 100_000, 0)))
@@ -75,6 +75,22 @@ class HomeUiTest {
 
     @Test fun phoneContinueWatchingRemovesWatchedTitlesAndWaitsForHistory() = checkContinueWatching(false)
     @Test fun remoteContinueWatchingRemovesWatchedTitlesAndWaitsForHistory() = checkContinueWatching(true)
+
+    @Test fun unavailableTitlesDoNotAppearInHomeOrContinueWatching() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val catalog = Catalog.parse(context.assets.open("catalog-seed.json").bufferedReader().use { it.readText() })
+        val film = catalog.visibleItems.first { it.type == "movie" && !it.paid && !it.explicit }
+        val hidden = film.copy(id = "movie:999", title = "Unavailable fixture", available = false, addedAt = "9999")
+        val state = CatalogState(catalog = catalog.copy(items = listOf(hidden, film)), loading = false,
+            saved = setOf(hidden.id), progress = listOf(Progress(hidden.id, hidden.id, hidden.title, 30_000, 100_000, 0)))
+        app.setContent { JumpflixTheme { Home(state, false, {}, {}) } }
+        app.onNodeWithText("Continue watching").assertDoesNotExist()
+        app.onNodeWithTag("home-feed").performScrollToNode(hasText("New"))
+        app.onAllNodesWithContentDescription(hidden.title).assertCountEquals(0)
+        app.onNodeWithTag("home-feed").performScrollToNode(hasText("Explore"))
+        app.onAllNodesWithContentDescription(hidden.title).assertCountEquals(0)
+        app.runOnIdle { org.junit.Assert.assertTrue(hidden.id in state.saved) }
+    }
 
     @Test fun unknownHistoryWithholdsFeaturesAndWatchedUpdatesRemoveExistingPicks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

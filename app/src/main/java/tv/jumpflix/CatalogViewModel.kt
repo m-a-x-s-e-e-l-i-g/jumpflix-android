@@ -71,7 +71,8 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val catalog = repository.refresh()
-                mutable.update { it.copy(catalog = catalog, cached = false, loading = false) }
+                mutable.update { current -> current.copy(catalog = catalog, cached = false, loading = false,
+                    selected = current.selected?.takeIf { selected -> catalog.visibleItems.any { it.id == selected.id } }) }
             } catch (exception: CancellationException) { throw exception
             } catch (exception: Exception) {
                 mutable.update { it.copy(loading = false, error = exception.message ?: "Could not refresh the catalog.") }
@@ -96,12 +97,13 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun select(item: CatalogItem) {
+        if (!item.available) return
         mutable.update { it.copy(selected = item, detailError = null, detailLoading = item.type == "series") }
         if (item.type != "series") return
         viewModelScope.launch {
             try {
                 val detail = repository.series(item.slug)
-                mutable.update { if (it.selected?.id == item.id) it.copy(selected = detail, detailLoading = false) else it }
+                mutable.update { if (it.selected?.id == item.id) it.copy(selected = detail.takeIf { it.available }, detailLoading = false) else it }
             } catch (exception: CancellationException) { throw exception
             } catch (_: Exception) {
                 mutable.update { if (it.selected?.id == item.id) it.copy(detailLoading = false, detailError = "Episodes could not be refreshed. You can open this series on JUMPFLIX.") else it }
