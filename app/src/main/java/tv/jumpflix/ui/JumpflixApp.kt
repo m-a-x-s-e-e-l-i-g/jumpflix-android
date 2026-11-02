@@ -282,8 +282,8 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
         }
         val continuing = watched?.let { continueWatching(all, state.progress, it) }.orEmpty()
         if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, watchedFilms, select) }
-        item(key = "recent") { FilmRow("New to the archive", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, watchedFilms, select) }
-        item(key = "all") { FilmRow("Explore the archive", archive, tv, state.progress, watchedFilms, select) { archiveSeed++ } }
+        item(key = "recent") { FilmRow("New", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, watchedFilms, select) }
+        item(key = "all") { FilmRow("Explore", archive, tv, state.progress, watchedFilms, select) { archiveSeed++ } }
         val docs = all.filter { it.category == "documentary" }
         if (docs.isNotEmpty()) item(key = "docs") { FilmRow("Stories behind the movement", docs, tv, state.progress, watchedFilms, select) }
         val series = all.filter { it.type == "series" }

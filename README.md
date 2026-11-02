@@ -22,8 +22,8 @@ Home rows, Search, My list, and profile filmographies show a checkmark and Watch
 badge on completed titles. Watched posters suppress stale resume bars and expose
 the same status to screen readers. Films count as watched across video providers;
 series require an explicit whole-series watch, not just one completed episode.
-The feed starts with Continue watching (when present), New to the archive,
-then Explore the archive. Explore's Randomize button reshuffles its titles and
+The feed starts with Continue watching (when present), New,
+then Explore. Explore's Randomize button reshuffles its titles and
 returns that row to its beginning. Saved catalogs remain usable without an offline
 banner on Home; catalog refresh/status stays available in About.
 

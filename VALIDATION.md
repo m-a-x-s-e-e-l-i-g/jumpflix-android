@@ -525,6 +525,14 @@ screenshots remain in ignored local build/artifact directories.
   or saved-list records. This verifies the observed films and phone, not every
   account/title combination or physical Android TV hardware.
 
+## Alpha 21 shorter Home headings — 2026-11-02
+
+- Home uses New and Explore. Updated the existing test selectors and current
+  documentation to match; the Randomize action is unchanged.
+- App and instrumentation APK compilation pass. Alpha21 was installed in place
+  on the Nothing A063; both shortened headings were confirmed in its UI hierarchy.
+  No broader tests were rerun for this label change.
+
 ## Alpha 20 Continue Watching — 2026-11-02
 
 - Continue Watching excludes account-watched films across provider keys and

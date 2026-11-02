@@ -33,10 +33,10 @@ class HomeUiTest {
         app.onNodeWithTag("home-feed").performScrollToIndex(1)
         app.onNodeWithText("Continue watching").assertIsDisplayed()
         app.onNodeWithTag("home-feed").performScrollToIndex(2)
-        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onNodeWithText("New").assertIsDisplayed()
         app.onNodeWithTag("home-feed").performScrollToIndex(3)
-        app.onNodeWithText("Explore the archive").assertIsDisplayed()
-        val rowTag = "film-row-Explore the archive"
+        app.onNodeWithText("Explore").assertIsDisplayed()
+        val rowTag = "film-row-Explore"
         app.onNodeWithTag(rowTag).performScrollToIndex(10)
         val button = app.onNodeWithContentDescription("Randomize archive")
         if (tv) {
@@ -68,7 +68,7 @@ class HomeUiTest {
         app.runOnIdle { watched = setOf("${film.id}:yt:previous-provider") }
         app.onNodeWithText("Continue watching").assertDoesNotExist()
         app.onNodeWithTag("home-feed").performScrollToIndex(0)
-        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onNodeWithText("New").assertIsDisplayed()
         app.runOnIdle { watched = null }
         app.onNodeWithText("Continue watching").assertDoesNotExist()
     }
@@ -84,7 +84,7 @@ class HomeUiTest {
         var pending by mutableStateOf(true)
         app.setContent { JumpflixTheme { Home(state, false, {}, {}, watched, pending) } }
         app.onNodeWithText("Discover film").assertDoesNotExist()
-        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onNodeWithText("New").assertIsDisplayed()
         app.runOnIdle { watched = emptySet() }
         val first = dailyFeatured(catalog.items, LocalDate.now()).first()
         val featuredTitle = hasText(first.title) and hasAnyAncestor(hasTestTag("featured-picks"))
@@ -94,11 +94,11 @@ class HomeUiTest {
         app.onNodeWithText("Discover film").assertExists()
         app.runOnIdle { watched = catalog.items.map { it.id }.toSet() }
         app.onNodeWithText("Discover film").assertDoesNotExist()
-        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onNodeWithText("New").assertIsDisplayed()
         app.onAllNodesWithText("Watched", useUnmergedTree = true).onFirst().assertIsDisplayed()
         app.runOnIdle { watched = null; pending = false }
         app.onNodeWithTag("featured-picks").assertDoesNotExist()
         app.onNodeWithText("Watched", useUnmergedTree = true).assertDoesNotExist()
-        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.onNodeWithText("New").assertIsDisplayed()
     }
 }
