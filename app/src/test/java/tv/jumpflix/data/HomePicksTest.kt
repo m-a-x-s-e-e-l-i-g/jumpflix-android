@@ -41,4 +41,27 @@ class HomePicksTest {
         assertEquals(setOf("movie:42", "movie:420", "series:2"), watchedTitleIds(setOf("movie:42", "movie:42:yt:old",
             "movie:420:hls:https://video.example/film.m3u8", "series:1:ep:video", "series:2")))
     }
+
+    @Test fun `continue watching excludes watched films across providers and keeps unfinished order`() {
+        val films = (1..5).map { id -> this.films.first().copy(id = "movie:$id", type = "movie") }
+        val progress = listOf(1, 2, 3, 4, 4, 5, 99).map { id ->
+            Progress("movie:$id", "movie:$id", "Film", if (id == 5) 99_000 else 30_000, 100_000, 0)
+        }
+        assertEquals(listOf(films[2], films[3]), continueWatching(films, progress,
+            setOf("movie:1", "movie:2:yt:other-provider", "movie:30:vimeo:neighbor")))
+        assertEquals(listOf(films[1], films[2], films[3]), continueWatching(films, progress,
+            setOf("movie:1:hls:https://example.test/video.m3u8")))
+        assertTrue(continueWatching(films, progress, films.map { it.id }.toSet()).isEmpty())
+    }
+
+    @Test fun `continue watching excludes watched episodes without hiding another unfinished episode`() {
+        val series = films.first().copy(id = "series:1", type = "series")
+        val first = Progress("series:1:season:1:ep:one", series.id, "First", 30_000, 100_000, 2)
+        val second = first.copy(key = "series:1:season:2:ep:two", title = "Second", updatedAt = 1)
+        assertTrue(continueWatching(listOf(series), listOf(first), setOf("series:1:ep:one")).isEmpty())
+        assertEquals(listOf(series), continueWatching(listOf(series), listOf(first, second), setOf("series:1:ep:one")))
+        assertEquals(listOf(series), continueWatching(listOf(series), listOf(first), setOf("series:1:ep:one-more")))
+        assertTrue(continueWatching(listOf(series), listOf(first, second), setOf("series:1")).isEmpty())
+        assertTrue(continueWatching(listOf(series), listOf(first, second), setOf("series:1:ep:one", "series:1:ep:two")).isEmpty())
+    }
 }

@@ -280,8 +280,7 @@ internal fun Home(state: CatalogState, tv: Boolean, select: (CatalogItem) -> Uni
                 CircularProgressIndicator(Modifier.align(Alignment.Center).size(24.dp), color = Accent, strokeWidth = 2.dp)
             }
         }
-        val continueIds = state.progress.filter { it.inProgress }.map { it.itemId }.distinct()
-        val continuing = continueIds.mapNotNull { id -> all.find { it.id == id } }
+        val continuing = watched?.let { continueWatching(all, state.progress, it) }.orEmpty()
         if (continuing.isNotEmpty()) item(key = "continue") { FilmRow("Continue watching", continuing, tv, state.progress, watchedFilms, select) }
         item(key = "recent") { FilmRow("New to the archive", all.sortedByDescending { it.addedAt }.take(24), tv, state.progress, watchedFilms, select) }
         item(key = "all") { FilmRow("Explore the archive", archive, tv, state.progress, watchedFilms, select) { archiveSeed++ } }

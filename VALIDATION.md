@@ -524,3 +524,19 @@ screenshots remain in ignored local build/artifact directories.
 - Returned to Home without starting playback or changing watched, rating, review,
   or saved-list records. This verifies the observed films and phone, not every
   account/title combination or physical Android TV hardware.
+
+## Alpha 20 Continue Watching — 2026-11-02
+
+- Continue Watching excludes account-watched films across provider keys and
+  watched episodes across local season keys. Another unfinished episode keeps
+  its series eligible. Unknown account history withholds the row until loaded.
+- Debug build, lint and all 62 JVM tests passed. All five Home UI tests passed
+  on the Android TV emulator, including watched-history loading and updates in
+  both phone and remote layouts.
+- Installed versionCode 20 / 0.1.0-alpha20 in place on the Nothing A063 without
+  clearing app data. The existing account and XPOP total remained available.
+  The inspected Home screenshot shows only unfinished Bound By Movement in
+  Continue Watching; watched titles are excluded. Evidence is retained in the
+  ignored artifacts/phone-alpha20-home.png screenshot.
+- No playback or account-history changes were performed. Physical Android TV
+  hardware and every account/title combination were not tested.

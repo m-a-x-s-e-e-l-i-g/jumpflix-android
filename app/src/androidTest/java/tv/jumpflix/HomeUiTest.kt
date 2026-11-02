@@ -53,6 +53,29 @@ class HomeUiTest {
     @Test fun phoneHomeOrdersRowsAndRandomizesTheArchiveWithoutTheCacheBanner() = checkHome(false)
     @Test fun remoteHomeCanRandomizeAndRestoreTheArchiveRow() = checkHome(true)
 
+    private fun checkContinueWatching(tv: Boolean) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val catalog = Catalog.parse(context.assets.open("catalog-seed.json").bufferedReader().use { it.readText() })
+        val film = dailyFeatured(catalog.items, LocalDate.now()).first()
+        val state = CatalogState(catalog = catalog.copy(items = listOf(film)), loading = false,
+            progress = listOf(Progress(film.id, film.id, film.title, 30_000, 100_000, 0)))
+        var watched by mutableStateOf<Set<String>?>(null)
+        app.setContent { JumpflixTheme { Home(state, tv, {}, {}, watched) } }
+        app.onNodeWithText("Continue watching").assertDoesNotExist()
+        app.runOnIdle { watched = emptySet() }
+        app.onNodeWithTag("home-feed").performScrollToIndex(1)
+        app.onNodeWithText("Continue watching").assertIsDisplayed()
+        app.runOnIdle { watched = setOf("${film.id}:yt:previous-provider") }
+        app.onNodeWithText("Continue watching").assertDoesNotExist()
+        app.onNodeWithTag("home-feed").performScrollToIndex(0)
+        app.onNodeWithText("New to the archive").assertIsDisplayed()
+        app.runOnIdle { watched = null }
+        app.onNodeWithText("Continue watching").assertDoesNotExist()
+    }
+
+    @Test fun phoneContinueWatchingRemovesWatchedTitlesAndWaitsForHistory() = checkContinueWatching(false)
+    @Test fun remoteContinueWatchingRemovesWatchedTitlesAndWaitsForHistory() = checkContinueWatching(true)
+
     @Test fun unknownHistoryWithholdsFeaturesAndWatchedUpdatesRemoveExistingPicks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val catalog = Catalog.parse(context.assets.open("catalog-seed.json").bufferedReader().use { it.readText() })
