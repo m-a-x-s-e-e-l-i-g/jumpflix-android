@@ -631,3 +631,31 @@ screenshots remain in ignored local build/artifact directories.
   phone/TV layout, people navigation, watched posters, and song search checks pass.
 - The physical phone was absent from ADB; alpha23 has not been installed or
   checked on it. No physical Android TV validation was performed.
+
+## Alpha 24 playback chrome visibility — 2026-11-03
+
+- Fixed the native-only auto-hide guard. Native streams and phone embeds now
+  hide JUMPFLIX controls after four seconds without interaction while playing.
+  Entering phone fullscreen hides them immediately during playback. The first
+  tap or D-pad/Enter press reveals controls without activating the newly shown
+  button or passing that tap into the provider video.
+- Collapse toolbar, credits, and controls independently, keeping the embedded
+  video visible and expanding its viewport. Paused/unready playback, status
+  messages, active scrubbing, open speed/credit dialogs, and accessible touch
+  exploration keep controls available. Provider-owned fullscreen receives its
+  own touch/key input; TV YouTube/Vimeo still uses the external provider app.
+- A regression test reproduced activity recreation on fullscreen rotation.
+  PlaybackActivity now handles screenLayout/smallestScreenSize changes alongside
+  orientation/screenSize so rotation can retain the player and hidden chrome.
+  The existing debug-only phone/TV layout override is also supported in playback.
+- App/test builds, all 65 JVM tests, and lint pass (zero errors, 42 advisory warnings).
+- All eight targeted player instrumented tests pass on the two-CPU/1,536 MB API34
+  TV emulator. A real authorized HLS stream rendered frames and passed idle-hide,
+  remote reveal, pause, seek, and mute checks. Local YouTube/Vimeo clock fixtures
+  verify embed timeout, viewport expansion, first-touch/remote consumption, paused
+  visibility, and fullscreen rotation retaining the same activity. A provider
+  custom-view fixture verifies its fullscreen taps and close callback. These
+  fixtures test the native integration, not live YouTube/Vimeo playback policies.
+  Existing cutout/gesture inset and chapter-dialog seek checks also pass.
+- The physical phone is absent from ADB, so alpha24 is not installed or physically
+  checked. Emulator results do not establish physical Android TV behavior.

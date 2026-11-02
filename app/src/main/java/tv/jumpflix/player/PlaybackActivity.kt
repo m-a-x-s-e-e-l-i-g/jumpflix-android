@@ -14,9 +14,11 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -47,6 +49,7 @@ import androidx.media3.ui.PlayerView
 import org.json.JSONObject
 import org.json.JSONTokener
 import tv.jumpflix.R
+import tv.jumpflix.BuildConfig
 import tv.jumpflix.data.LibraryStore
 import tv.jumpflix.data.PlaybackSource
 import tv.jumpflix.data.CreditReference
@@ -84,11 +87,14 @@ class PlaybackActivity : ComponentActivity() {
     private var xpopOwner: String? = null
     private var completionQueued = false
     private var accountWatchKey = ""
+    private var revealingTouch = false
+    private var revealingKey = KeyEvent.KEYCODE_UNKNOWN
     private val handler = Handler(Looper.getMainLooper())
     private val hideChrome = object : Runnable {
         override fun run() {
-            if (creditsView.dialogOpen) handler.postDelayed(this, 4000)
-            else if (player?.isPlaying == true) chrome.visibility = View.GONE
+            if (creditsView.dialogOpen || controls.interacting) handler.postDelayed(this, 4000)
+            else if (snapshot.ready && !snapshot.paused && !status.isShown &&
+                !(getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager).isTouchExplorationEnabled) setControlsVisible(false)
         }
     }
     private val poll = object : Runnable {
@@ -104,7 +110,12 @@ class PlaybackActivity : ComponentActivity() {
         library = LibraryStore(this)
         accountWatchKey = intent.getStringExtra("watchKey").orEmpty()
         lifecycleScope.launch { xpopOwner = XpopRepository.get(this@PlaybackActivity).playbackOwner() }
-        television = (getSystemService(UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        val deviceIsTv = (getSystemService(UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        television = if (BuildConfig.DEBUG) when (intent.getStringExtra("layout")) {
+            "phone" -> false
+            "tv" -> true
+            else -> deviceIsTv
+        } else deviceIsTv
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -165,9 +176,15 @@ class PlaybackActivity : ComponentActivity() {
     }
 
     private fun command(name: String, value: Double?) {
+        revealControls()
         if (name == "back") { finish(); return }
         if (name == "fullscreen") {
-            requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            val entering = resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
+            requestedOrientation = if (entering) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (entering && snapshot.ready && !snapshot.paused) {
+                handler.removeCallbacks(hideChrome)
+                hideChrome.run()
+            }
             return
         }
         player?.let { video ->
@@ -244,18 +261,57 @@ class PlaybackActivity : ComponentActivity() {
         val callback = fullscreenCallback; fullscreenCallback = null; callback?.onCustomViewHidden()
     }
 
-    private fun showStatus(message: String) { status.text = message; status.visibility = View.VISIBLE }
+    private fun showStatus(message: String) { status.text = message; revealControls() }
+
+    private fun setControlsVisible(visible: Boolean) {
+        // Collapse the chrome without hiding the provider viewport inside its layout.
+        val visibility = if (visible) View.VISIBLE else View.GONE
+        controls.visibility = visibility
+        creditsView.visibility = visibility
+        status.visibility = if (visible && status.text.isNotBlank()) View.VISIBLE else View.GONE
+        toolbar.visibility = if (visible && (television || resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE)) View.VISIBLE else View.GONE
+    }
 
     private fun revealControls() {
-        if (!::chrome.isInitialized || !::source.isInitialized || !source.native) return
-        val hidden = chrome.visibility != View.VISIBLE
-        chrome.visibility = View.VISIBLE
+        if (!::controls.isInitialized || fullscreen != null) return
+        val hidden = controls.visibility != View.VISIBLE
+        setControlsVisible(true)
         if (hidden && television) controls.focusPlayback()
         handler.removeCallbacks(hideChrome)
         handler.postDelayed(hideChrome, 4000)
     }
 
     override fun onUserInteraction() { super.onUserInteraction(); revealControls() }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (fullscreen != null) return super.dispatchTouchEvent(event)
+        if (::controls.isInitialized && event.actionMasked == MotionEvent.ACTION_DOWN) {
+            revealingTouch = controls.visibility != View.VISIBLE
+            if (revealingTouch) revealControls()
+        }
+        if (revealingTouch) {
+            if (event.actionMasked in setOf(MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL)) revealingTouch = false
+            return true
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
+    @SuppressLint("RestrictedApi") // Public Window.Callback override; intercept before a focused child activates.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (fullscreen != null) return super.dispatchKeyEvent(event)
+        if (event.keyCode == revealingKey) {
+            if (event.action == KeyEvent.ACTION_UP) revealingKey = KeyEvent.KEYCODE_UNKNOWN
+            return true
+        }
+        if (::controls.isInitialized && controls.visibility != View.VISIBLE && event.action == KeyEvent.ACTION_DOWN &&
+            event.keyCode in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) {
+            revealingKey = event.keyCode
+            revealControls()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (::source.isInitialized && source.native) when (keyCode) {
@@ -272,10 +328,8 @@ class PlaybackActivity : ComponentActivity() {
         val save = forceSave || SystemClock.elapsedRealtime() - lastSave >= 5000
         if (save) lastSave = SystemClock.elapsedRealtime()
         player?.let { video ->
-            snapshot = PlaybackSnapshot(video.currentPosition.coerceAtLeast(0), video.duration.coerceAtLeast(0), !video.playWhenReady || video.playbackState == Player.STATE_ENDED,
-                video.playbackParameters.speed, video.volume == 0f, video.playbackState != Player.STATE_IDLE)
-            controls.render(snapshot)
-            creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, creditsLoading)
+            renderPlayback(PlaybackSnapshot(video.currentPosition.coerceAtLeast(0), video.duration.coerceAtLeast(0), !video.playWhenReady || video.playbackState == Player.STATE_ENDED,
+                video.playbackParameters.speed, video.volume == 0f, video.playbackState != Player.STATE_IDLE))
             if (save) recordProgress()
         }
         web?.evaluateJavascript("JSON.stringify(window.jumpflixState || {})") { encoded ->
@@ -284,18 +338,24 @@ class PlaybackActivity : ComponentActivity() {
                 val state = JSONObject(JSONTokener(encoded).nextValue() as? String ?: return@runCatching)
                 fun milliseconds(key: String): Long = state.optDouble(key, 0.0).takeIf { it.isFinite() && it >= 0 }?.let { (it * 1000).toLong() } ?: 0L
                 val rates = state.optJSONArray("rates")?.let { array -> (0 until array.length()).map { array.optDouble(it).toFloat() }.filter { it.isFinite() && it in .25f..4f } }.orEmpty()
-                snapshot = PlaybackSnapshot(milliseconds("position"), milliseconds("duration"), state.optBoolean("paused", true),
-                    state.optDouble("rate", 1.0).toFloat(), state.optBoolean("muted"), state.optBoolean("ready"), rates.ifEmpty { listOf(1f) })
-                controls.render(snapshot)
-                creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, creditsLoading)
+                renderPlayback(PlaybackSnapshot(milliseconds("position"), milliseconds("duration"), state.optBoolean("paused", true),
+                    state.optDouble("rate", 1.0).toFloat(), state.optBoolean("muted"), state.optBoolean("ready"), rates.ifEmpty { listOf(1f) }))
                 if (save) recordProgress()
                 if (state.optBoolean("error")) showStatus(if (source.kind == "vimeo" && state.optString("errorName") in setOf("PrivacyError", "PasswordError"))
                     "Vimeo is not allowing this film to play here. Its owner may have restricted access. Choose Provider to check availability."
                     else "The provider cannot play this video here. Choose Provider to continue.")
                 else if (state.optBoolean("controlError")) showStatus("That control is unavailable for this video. You can also use the provider controls.")
-                else { status.visibility = View.GONE }
+                else { status.text = ""; status.visibility = View.GONE }
             }
         }
+    }
+
+    private fun renderPlayback(value: PlaybackSnapshot) {
+        val changed = value.paused != snapshot.paused || value.ready != snapshot.ready
+        snapshot = value
+        controls.render(snapshot)
+        creditsView.render(credits, snapshot.position, snapshot.ready && snapshot.duration > 0, creditsLoading)
+        if (changed) revealControls()
     }
 
     private fun recordProgress() {
@@ -310,7 +370,7 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun adaptPlayerLayout() {
         // Leave room for the complete provider viewport on short landscape phones.
-        toolbar.visibility = if (!television && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
+        setControlsVisible(controls.visibility == View.VISIBLE)
         controls.setFullscreen(!television && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         ViewCompat.requestApplyInsets(root)
     }
@@ -318,7 +378,7 @@ class PlaybackActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); adaptPlayerLayout() }
 
     override fun onStart() { super.onStart(); web?.onResume(); revealControls(); handler.post(poll) }
-    override fun onStop() { updatePlayback(true); handler.removeCallbacks(poll); handler.removeCallbacks(hideChrome); player?.pause(); sendWebCommand("pause"); web?.onPause(); super.onStop() }
+    override fun onStop() { updatePlayback(true); player?.pause(); sendWebCommand("pause"); web?.onPause(); handler.removeCallbacks(poll); handler.removeCallbacks(hideChrome); super.onStop() }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null); player?.release(); player = null
         web?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }; web = null

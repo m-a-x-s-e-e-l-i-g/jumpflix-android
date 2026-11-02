@@ -57,6 +57,8 @@ internal fun playerButton(context: Context, label: String, description: String, 
 internal class PlaybackControls(context: Context, private val television: Boolean, private val command: (String, Double?) -> Unit) : LinearLayout(context) {
     private var snapshot = PlaybackSnapshot()
     private var dragging = false
+    private var ratesOpen = false
+    val interacting: Boolean get() = dragging || ratesOpen
     private val time = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 12f }
     private val seek = SeekBar(context).apply {
         max = 10000; contentDescription = "Playback position"
@@ -107,6 +109,8 @@ internal class PlaybackControls(context: Context, private val television: Boolea
         PopupMenu(context, speed).apply {
             snapshot.rates.forEachIndexed { index, rate -> menu.add(0, index, index, "${rate}×") }
             setOnMenuItemClickListener { command("rate", snapshot.rates[it.itemId].toDouble()); true }
+            setOnDismissListener { ratesOpen = false }
+            ratesOpen = true
             show()
         }
     }
