@@ -591,3 +591,19 @@ screenshots remain in ignored local build/artifact directories.
   visible to Android). It is constrained-emulator validation, not a physical budget
   phone or Android TV test. No account-history mutations or instrumentation APK
   installation on the physical phone were performed.
+
+## Final alpha22 phone installation — 2026-11-03
+
+- Installed the final alpha22 APK in place on the reconnected Nothing A063.
+  The installed base APK's SHA-256 matches the local tested build. The existing
+  signed-in account and 11,600 XPOP header remained available; no data was cleared
+  and no instrumentation APK ran on the phone.
+- Repeated the incremental kevin franzen typing check. Film search returned nine
+  titles; People mode found Kevin Franzén. His profile opened with nine catalog
+  titles, and system Back restored both the query and People mode.
+- The final-build typing capture reported 65 frames, 19 janky frames, and a
+  95th-percentile frame bucket of 101 ms. This is one observed phone/debug run,
+  not a general FPS or budget-device guarantee. Raw captures and UI hierarchies
+  remain in ignored artifacts/perf-final-phone-* and artifacts/phone-alpha22-*.
+- Returned the app to Home without playback or watched/list/rating/review writes.
+  Final phone installation is complete; other hardware still needs testing.
