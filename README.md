@@ -53,7 +53,7 @@ can return when the catalog marks them available again. Paid titles remain visib
   and Spotify. The custom player follows the current spot/song and has a credits list.
 - Media3 playback for authorized direct/HLS streams.
 - Custom JUMPFLIX controls: play/pause, timeline, ±10 seconds, speed, mute, and
-  phone fullscreen. Controls hide after four seconds of playback inactivity and
+  phone fullscreen. Controls fade over 100 ms after two seconds of playback inactivity and
   return on touch or remote input. Media remote buttons also work natively.
 - Back and playback controls respect the camera cutout and gesture areas. Mute and
   fullscreen use labeled icons; landscape retains a Back icon in the control row.
@@ -239,9 +239,12 @@ video/provider; an unavailable Vimeo control is a nonfatal message. TV
 YouTube/Vimeo still opens the provider app.
 
 JUMPFLIX controls auto-hide for native streams and phone embeds. Entering phone
-fullscreen hides them immediately during playback; a tap or D-pad press reveals
+fullscreen starts hiding them immediately during playback; a tap or D-pad press reveals
 them without also activating a control. Paused playback keeps controls visible.
 Scrubbing, open credits/speed menus, and touch exploration keep them available.
+Show/hide uses a 100 ms fade; Android's animation-off setting removes that fade.
+New input cancels an unfinished hide, and auto-hide waits two seconds after the
+interaction ends, including held touches.
 Hiding embed controls expands the provider viewport rather than hiding the video
 with its surrounding layout. Fullscreen rotation keeps the existing player and
 control visibility. Provider-owned fullscreen and TV provider apps keep

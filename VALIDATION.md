@@ -678,3 +678,38 @@ screenshots remain in ignored local build/artifact directories.
 - Screenshots and UI hierarchies remain in ignored artifacts/phone-alpha24-*.
   This verifies the observed phone/YouTube title, not every provider, paused/menu
   combination, or physical Android TV hardware.
+
+## Alpha 25 faster playback chrome transitions — 2026-11-03
+
+- Native and embedded JUMPFLIX controls use a 100 ms opacity fade in/out with
+  deceleration, replacing the abrupt visibility switch. Android's animation-off
+  setting applies visibility immediately. The provider video itself is not faded;
+  its surrounding layout collapses after the controls finish fading out.
+- Idle auto-hide is two seconds instead of four. Held touches, active scrubbing,
+  speed/credits menus, paused/unready playback, status messages, and accessible
+  touch exploration retain their visibility protections. Touch release and
+  consumed remote input reset the timeout.
+- Visibility intent is tracked independently of the outgoing view animation, so
+  new input can interrupt/reverse hiding without activating an outgoing button.
+  Rotation and stopping the activity settle/cancel transitions instead of leaving
+  stale hide callbacks or translucent controls.
+- App/test compilation, all 65 JVM tests, and lint pass (zero errors, 43 advisory
+  warnings). All nine targeted player emulator checks pass. The four visibility
+  checks also pass with animator_duration_scale=0, after which the emulator's
+  original setting was restored. Final lifecycle cleanup was followed by another
+  successful run of all four visibility checks on the final APK.
+- The new check requires idle hiding within three seconds, observes a fade-in
+  starting below full opacity while controls are already interactive, and rapidly
+  interrupts a fullscreen hide to verify no stale end action hides the controls.
+  Timing assertions verify behavior; they are not a frame-rate benchmark.
+- Installed final alpha25 in place on the Nothing A063. Its installed base APK
+  SHA-256 matches the tested local APK. The real phone's animator scale remains
+  1.0; no phone animation settings were changed or instrumentation APK installed.
+- Rewatched the already-watched Holi Shit Vimeo title briefly: controls were
+  visible following interaction, and a subsequent capture after a three-second
+  idle interval showed the video playing with JUMPFLIX controls hidden. Returned
+  to Home with the account and 11,600 XPOP intact; no saved-list/rating/review or
+  manual watched actions were performed. Screenshots/UI dumps remain in ignored
+  artifacts/phone-alpha25-*. No app-process AndroidRuntime errors were reported
+  in the inspected buffer. Physical Android TV and broad device/FPS testing remain
+  unverified.

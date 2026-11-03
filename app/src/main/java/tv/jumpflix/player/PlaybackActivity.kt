@@ -2,6 +2,7 @@
 package tv.jumpflix.player
 
 import android.annotation.SuppressLint
+import android.animation.ValueAnimator
 import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
@@ -19,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityManager
+import android.view.animation.DecelerateInterpolator
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -89,10 +91,12 @@ class PlaybackActivity : ComponentActivity() {
     private var accountWatchKey = ""
     private var revealingTouch = false
     private var revealingKey = KeyEvent.KEYCODE_UNKNOWN
+    private var controlsVisible = true
+    private var touching = false
     private val handler = Handler(Looper.getMainLooper())
     private val hideChrome = object : Runnable {
         override fun run() {
-            if (creditsView.dialogOpen || controls.interacting) handler.postDelayed(this, 4000)
+            if (touching || creditsView.dialogOpen || controls.interacting) handler.postDelayed(this, 2000)
             else if (snapshot.ready && !snapshot.paused && !status.isShown &&
                 !(getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager).isTouchExplorationEnabled) setControlsVisible(false)
         }
@@ -263,22 +267,36 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun showStatus(message: String) { status.text = message; revealControls() }
 
-    private fun setControlsVisible(visible: Boolean) {
+    private fun setControlsVisible(visible: Boolean, animate: Boolean = true) {
         // Collapse the chrome without hiding the provider viewport inside its layout.
-        val visibility = if (visible) View.VISIBLE else View.GONE
-        controls.visibility = visibility
-        creditsView.visibility = visibility
-        status.visibility = if (visible && status.text.isNotBlank()) View.VISIBLE else View.GONE
-        toolbar.visibility = if (visible && (television || resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE)) View.VISIBLE else View.GONE
+        val changed = controlsVisible != visible
+        controlsVisible = visible
+        val sections = listOf(controls to visible, creditsView to visible, status to (visible && status.text.isNotBlank()),
+            toolbar to (visible && (television || resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE)))
+        sections.forEach { (view, show) ->
+            if (animate && !changed && (view.visibility == View.VISIBLE) == show) return@forEach
+            view.animate().cancel()
+            if (!animate || !ValueAnimator.areAnimatorsEnabled()) {
+                view.alpha = if (show) 1f else 0f
+                view.visibility = if (show) View.VISIBLE else View.GONE
+            } else if (show) {
+                if (view.visibility != View.VISIBLE) view.alpha = 0f
+                view.visibility = View.VISIBLE
+                view.animate().alpha(1f).setDuration(100).setInterpolator(DecelerateInterpolator()).withEndAction(null).start()
+            } else if (view.visibility == View.VISIBLE) {
+                view.animate().alpha(0f).setDuration(100).setInterpolator(DecelerateInterpolator())
+                    .withEndAction { view.visibility = View.GONE }.start()
+            }
+        }
     }
 
     private fun revealControls() {
         if (!::controls.isInitialized || fullscreen != null) return
-        val hidden = controls.visibility != View.VISIBLE
+        val hidden = !controlsVisible
         setControlsVisible(true)
         if (hidden && television) controls.focusPlayback()
         handler.removeCallbacks(hideChrome)
-        handler.postDelayed(hideChrome, 4000)
+        handler.postDelayed(hideChrome, 2000)
     }
 
     override fun onUserInteraction() { super.onUserInteraction(); revealControls() }
@@ -286,8 +304,13 @@ class PlaybackActivity : ComponentActivity() {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
         if (fullscreen != null) return super.dispatchTouchEvent(event)
         if (::controls.isInitialized && event.actionMasked == MotionEvent.ACTION_DOWN) {
-            revealingTouch = controls.visibility != View.VISIBLE
+            touching = true
+            revealingTouch = !controlsVisible
             if (revealingTouch) revealControls()
+        }
+        if (event.actionMasked in setOf(MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL)) {
+            touching = false
+            revealControls()
         }
         if (revealingTouch) {
             if (event.actionMasked in setOf(MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL)) revealingTouch = false
@@ -299,11 +322,12 @@ class PlaybackActivity : ComponentActivity() {
     @SuppressLint("RestrictedApi") // Public Window.Callback override; intercept before a focused child activates.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (fullscreen != null) return super.dispatchKeyEvent(event)
-        if (event.keyCode == revealingKey) {
+        if (revealingKey != KeyEvent.KEYCODE_UNKNOWN && event.keyCode == revealingKey) {
+            revealControls()
             if (event.action == KeyEvent.ACTION_UP) revealingKey = KeyEvent.KEYCODE_UNKNOWN
             return true
         }
-        if (::controls.isInitialized && controls.visibility != View.VISIBLE && event.action == KeyEvent.ACTION_DOWN &&
+        if (::controls.isInitialized && !controlsVisible && event.action == KeyEvent.ACTION_DOWN &&
             event.keyCode in setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT,
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) {
             revealingKey = event.keyCode
@@ -370,7 +394,7 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun adaptPlayerLayout() {
         // Leave room for the complete provider viewport on short landscape phones.
-        setControlsVisible(controls.visibility == View.VISIBLE)
+        setControlsVisible(controlsVisible, animate = false)
         controls.setFullscreen(!television && resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         ViewCompat.requestApplyInsets(root)
     }
@@ -378,7 +402,12 @@ class PlaybackActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); adaptPlayerLayout() }
 
     override fun onStart() { super.onStart(); web?.onResume(); revealControls(); handler.post(poll) }
-    override fun onStop() { updatePlayback(true); player?.pause(); sendWebCommand("pause"); web?.onPause(); handler.removeCallbacks(poll); handler.removeCallbacks(hideChrome); super.onStop() }
+    override fun onStop() {
+        updatePlayback(true); player?.pause(); sendWebCommand("pause"); web?.onPause()
+        handler.removeCallbacks(poll); handler.removeCallbacks(hideChrome); touching = false
+        if (::controls.isInitialized) setControlsVisible(controlsVisible, animate = false)
+        super.onStop()
+    }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null); player?.release(); player = null
         web?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }; web = null

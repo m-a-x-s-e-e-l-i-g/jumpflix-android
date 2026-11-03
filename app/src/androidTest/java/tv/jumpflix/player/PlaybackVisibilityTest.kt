@@ -2,6 +2,7 @@
 package tv.jumpflix.player
 
 import android.content.Intent
+import android.animation.ValueAnimator
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.SystemClock
@@ -57,8 +58,8 @@ class PlaybackVisibilityTest {
         }
     }
 
-    private fun await(scenario: ActivityScenario<PlaybackActivity>, condition: (PlaybackActivity) -> Boolean) {
-        val deadline = SystemClock.elapsedRealtime() + 10_000
+    private fun await(scenario: ActivityScenario<PlaybackActivity>, timeout: Long = 10_000, condition: (PlaybackActivity) -> Boolean) {
+        val deadline = SystemClock.elapsedRealtime() + timeout
         var matches = false
         while (!matches && SystemClock.elapsedRealtime() < deadline) {
             scenario.onActivity { matches = condition(it) }
@@ -141,9 +142,9 @@ class PlaybackVisibilityTest {
             scenario.onActivity { activity ->
                 original = activity
                 activity.controls().descendants().first { it.contentDescription == "Enter fullscreen" }.performClick()
-                assertFalse(activity.controls().isShown)
             }
             await(scenario) { it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            await(scenario) { !it.controls().isShown }
             scenario.onActivity {
                 assertSame("Fullscreen rotation must retain the playing activity", original, it)
                 assertFalse(it.controls().isShown)
@@ -153,6 +154,34 @@ class PlaybackVisibilityTest {
                 assertTrue(activity.controls().isShown)
                 assertTrue(activity.controls().descendants().any { it.contentDescription == "Exit fullscreen" })
             }
+        }
+    }
+
+    @Test fun controlsFadePromptlyAndReinteractionCancelsAnUnfinishedHide() {
+        launch("youtube", "phone").use { scenario ->
+            play(scenario)
+            await(scenario, 3000) { !it.controls().isShown }
+            fun reveal(activity: PlaybackActivity) {
+                val now = SystemClock.uptimeMillis()
+                for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                    MotionEvent.obtain(now, now, action, 100f, 100f, 0).also { activity.dispatchTouchEvent(it); it.recycle() }
+                }
+            }
+            scenario.onActivity { activity ->
+                reveal(activity)
+                assertTrue(activity.controls().isShown)
+                if (ValueAnimator.areAnimatorsEnabled()) assertTrue(activity.controls().alpha < 1f)
+                assertTrue(activity.controls().descendants().first { it.contentDescription == "Pause" }.isEnabled)
+            }
+            await(scenario, 1500) { it.controls().alpha == 1f }
+            scenario.onActivity { activity ->
+                activity.controls().descendants().first { it.contentDescription == "Enter fullscreen" }.performClick()
+                reveal(activity)
+            }
+            await(scenario) { it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            SystemClock.sleep(200)
+            scenario.onActivity { assertTrue(it.controls().isShown); assertEquals(1f, it.controls().alpha) }
+            await(scenario, 3000) { !it.controls().isShown }
         }
     }
 }
