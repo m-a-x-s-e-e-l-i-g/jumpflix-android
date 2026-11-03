@@ -659,3 +659,22 @@ screenshots remain in ignored local build/artifact directories.
   Existing cutout/gesture inset and chapter-dialog seek checks also pass.
 - The physical phone is absent from ADB, so alpha24 is not installed or physically
   checked. Emulator results do not establish physical Android TV behavior.
+
+## Alpha24 phone installation and fullscreen check — 2026-11-03
+
+- Installed alpha24 in place on the reconnected Nothing A063 / Android 15.
+  The installed base APK SHA-256 matches the tested local APK. The existing
+  signed-in account and 11,600 XPOP remained available; app data was not cleared
+  and no instrumentation APK was installed or run on the phone.
+- Resumed the existing LUMBER YouTube entry through the app. Playback frames and
+  the advancing clock were observed. Entering fullscreen retained playback with
+  the JUMPFLIX controls hidden; a stable landscape frame remained unobstructed.
+  A subsequent tap revealed the native controls and Exit fullscreen icon while
+  playback continued. The earlier portrait idle state also hid its controls.
+- Exited playback and returned to Home. The XPOP total remained 11,600; the short
+  check advanced LUMBER's existing local resume position. No manual watched,
+  saved-list, rating, or review changes were made. No app-process AndroidRuntime
+  errors were reported in the inspected log buffer.
+- Screenshots and UI hierarchies remain in ignored artifacts/phone-alpha24-*.
+  This verifies the observed phone/YouTube title, not every provider, paused/menu
+  combination, or physical Android TV hardware.
