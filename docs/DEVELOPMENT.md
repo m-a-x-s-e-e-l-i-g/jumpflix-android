@@ -40,6 +40,16 @@ framework generation at the same time as extracting shared code.
 
 ## Android behavior
 
+TV starts with focus on the active menu entry and restores that focus when
+returning from a detail/profile or another destination. Remote regression tests
+inject native D-pad and keyboard events without assigning focus through test
+semantics. The TV menu owns the popcorn character; Home/About keep the wordmark
+without repeating the character. Phone branding is unchanged.
+
+For keyboard control in the emulator, enable hardware keyboard input in the AVD
+(`hw.keyboard=yes`) and give the emulator window keyboard focus. The on-screen
+remote is available under **More → Directional Pad**.
+
 The current UI uses a compact branded phone masthead, portrait browse cards,
 wide featured artwork, and shared primary/secondary controls. The 48dp phone header
 uses the compact wordmark and XPOP icon/number; profiles replace it with a fixed

@@ -739,3 +739,22 @@ screenshots remain in ignored local build/artifact directories.
 - Read-only production probe: the public mobile catalog endpoint returned HTTP 404
   on 2026-11-04. Both clients use the saved/bundled catalog fallback. API deployment
   is separate from this client migration; no website deployment was performed.
+
+## TV remote and duplicate branding — 2026-11-04 (alpha 27)
+
+- Reproduced two alpha 26 failures with native key events and no forced test focus:
+  Home displayed two mascot images, and Back from Search left focus on the Search
+  menu entry after the destination had returned to Home.
+- Android TV explicitly requests the active menu's focus on entry/return. Home and
+  About use the wordmark without a second mascot; the original character stays in
+  the TV menu. Phone and desktop branding retain their existing defaults.
+- Enabled hardware keyboard input (hw.keyboard=yes) in the local TV emulator and
+  cold-restarted it. This is emulator setup, not a setting required by the app.
+- Alpha 27 installed on the TV API 34 emulator. Twenty instrumentation checks pass:
+  five native D-pad/keyboard navigation and branding regressions, nine browsing
+  smoke checks, and six Home/history checks. Native navigation covers menu → film,
+  Back → Home, Search/Enter, About/Back, and horizontal portrait-card movement.
+- Sixty-five Android unit tests, six shared tests and six desktop tests pass.
+  Android debug and instrumentation APKs build; lint reports 0 errors, 43 warnings.
+- Physical TV/remotes remain untested. The visible emulator is left open for manual
+  keyboard and on-screen remote testing.

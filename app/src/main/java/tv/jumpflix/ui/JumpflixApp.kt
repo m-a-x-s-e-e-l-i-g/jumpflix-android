@@ -101,6 +101,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
     var deepLinkHandled by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val navigationFocus = remember { Destination.entries.associateWith { FocusRequester() } }
     val phoneRail = !television && configuration.screenWidthDp >= 600 && configuration.screenWidthDp > configuration.screenHeightDp
     fun navigate(entry: Destination) {
         trail = BrowseTrail()
@@ -123,6 +124,9 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
         } else if (trail.routes.isEmpty()) model.closeDetail()
     }
     LaunchedEffect(state.selected?.id, account.profile?.id, xpop.summary?.watching) { state.selected?.let(model::loadInteractions) }
+    LaunchedEffect(television, destination, state.selected?.id, trail.person) {
+        if (television && state.selected == null && trail.person == null) navigationFocus.getValue(destination).requestFocus()
+    }
     LaunchedEffect(xpop.reward?.id) {
         xpop.reward?.id?.let { id -> kotlinx.coroutines.delay(3000); model.dismissXpop(id) }
     }
@@ -157,7 +161,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             androidx.tv.material3.Button(
                                 onClick = { navigate(entry) },
-                                modifier = Modifier.size(48.dp).semantics { contentDescription = entry.title },
+                                modifier = Modifier.size(48.dp).focusRequester(navigationFocus.getValue(entry)).semantics { contentDescription = entry.title },
                                 contentPadding = PaddingValues(14.dp),
                                 colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = if (destination == entry) Surface else Background),
                             ) { androidx.tv.material3.Icon(entry.icon, contentDescription = null) }
@@ -228,8 +232,8 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
 }
 
 @Composable
-internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false) {
-    BrandMark(painterResource(R.drawable.mascot), FontFamily(Font(R.font.bebas_neue)), modifier, compact)
+internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false, showMascot: Boolean = true) {
+    BrandMark(painterResource(R.drawable.mascot), FontFamily(Font(R.font.bebas_neue)), modifier, compact, showMascot)
 }
 
 @Composable
@@ -296,7 +300,7 @@ private fun Hero(items: List<CatalogItem>, tv: Boolean, select: (CatalogItem) ->
         FilmBackdrop(item, Modifier.fillMaxSize())
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Background.copy(alpha = .05f), .3f to Background.copy(alpha = .15f), .65f to Background.copy(alpha = .85f), 1f to Background)))
         if (tv) Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.96f), Background.copy(alpha = 0.6f), Color.Transparent))))
-        if (tv) Brand(Modifier.align(Alignment.TopStart).padding(24.dp))
+        if (tv) Brand(Modifier.align(Alignment.TopStart).padding(24.dp), showMascot = false)
         Column(
             Modifier.align(Alignment.BottomStart).fillMaxWidth(if (tv) 0.68f else 1f).padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.Start,
@@ -553,7 +557,7 @@ private fun Details(item: CatalogItem, state: CatalogState, tv: Boolean, back: (
 private fun About(state: CatalogState, tv: Boolean, refresh: () -> Unit) {
     val context = LocalContext.current
     LazyColumn(Modifier.widthIn(max = 640.dp).fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-        item { Brand() }
+        item { Brand(showMascot = !tv) }
         item { Text("Parkour cinema,\nwherever you watch.", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineLarge) }
         item { Text("Films, documentaries, and movement stories from the global parkour community. Creators keep their credit, their views, and control of their work.", color = Muted, style = MaterialTheme.typography.bodyLarge) }
         item { Text("${state.catalog?.visibleItems?.size ?: 0} titles  ·  ${if (state.cached) "Saved catalog" else "Live catalog"}\n${if (tv) "Android TV" else "Android"}  ·  ${BuildConfig.VERSION_NAME}", color = Muted) }

@@ -20,9 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun BrandMark(mascot: Painter, wordmark: FontFamily, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun BrandMark(mascot: Painter, wordmark: FontFamily, modifier: Modifier = Modifier, compact: Boolean = false, showMascot: Boolean = true) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
-        Image(mascot, "JUMPFLIX popcorn character", Modifier.size(if (compact) 26.dp else 49.dp, if (compact) 34.dp else 64.dp))
+        if (showMascot) Image(mascot, "JUMPFLIX popcorn character", Modifier.size(if (compact) 26.dp else 49.dp, if (compact) 34.dp else 64.dp))
         Column {
             Text("JUMPFLIX", color = Accent, fontSize = if (compact) 24.sp else 39.sp, letterSpacing = if (compact) 1.5.sp else 3.sp,
                 fontFamily = wordmark, modifier = Modifier.graphicsLayer { rotationX = 12f; scaleX = 1.04f })
