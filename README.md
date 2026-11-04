@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://www.jumpflix.tv">Website</a> ·
-  <a href="https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases">Download APK</a> ·
+  <a href="https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases">Download alpha</a> ·
   <a href="https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/issues">Report an issue</a>
 </p>
 
@@ -48,6 +48,31 @@ yet. iOS and Apple TV are outside the current scope.
 
 ## Install
 
+**[0.1.0-alpha27 — first multiplatform alpha](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases/tag/v0.1.0-alpha27)**
+
+| Platform | Download |
+| --- | --- |
+| Android phone / Android TV, Android 8.0+ | [APK](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases/download/v0.1.0-alpha27/jumpflix-android.apk) |
+| Windows, x86-64 | [Portable ZIP](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases/download/v0.1.0-alpha27/jumpflix-windows-x64.zip) |
+| Linux desktop, x86-64 | [tar.gz](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases/download/v0.1.0-alpha27/jumpflix-linux-x64.tar.gz) |
+| macOS, Apple Silicon (M-series) | [tar.gz](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases/download/v0.1.0-alpha27/jumpflix-macos-arm64.tar.gz) |
+
+Desktop downloads include their Java runtime. Extract the **entire** archive;
+keep the runtime and app folders with the launcher. These are portable apps,
+not system installers. Intel Mac and ARM Linux/Windows binaries are not included.
+
+**Windows:** extract the ZIP, open `Jumpflix`, then run `Jumpflix.exe`.
+
+**Linux:** extract the archive, then run `./Jumpflix/bin/Jumpflix` from the extracted
+directory. A graphical desktop is required; no administrator install is needed.
+
+**macOS:** extract the archive and open `Jumpflix.app` (or move it to Applications).
+This alpha has no Developer ID signature or Apple notarization; see
+[Apple's guidance for opening downloaded apps](https://support.apple.com/en-gb/102445).
+Windows may also show an unsigned-app warning.
+
+**Android / Android TV:**
+
 1. Download **jumpflix-android.apk** from [Releases](https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/releases).
 2. Open the APK on your Android phone and allow installation from that source when Android asks.
 3. Open JUMPFLIX. Browse as a guest, or sign in with your existing account.
@@ -59,8 +84,16 @@ adb install -r jumpflix-android.apk
 ```
 
 **Android 8.0+ required.** This is an alpha distributed as a debug-signed APK.
+It uses the same signing identity as the earlier Android alpha, so it can update
+that installation without clearing its local data. CI debug APKs can use a
+different signing identity; use the release APK for consistent updates.
 Phone playback has been tested on a Nothing A063 running Android 15. Android TV
 has been tested in an emulator; physical TV testing is still needed.
+
+Desktop playback currently opens a browser; desktop sign-in, XPOP and watch
+tracking are not implemented. Windows has been manually checked; Linux/macOS have
+passed build and automated UI checks in CI, with manual hardware testing pending.
+Checksums and a standalone installation guide are included with the release.
 
 ## Playback and account notes
 
