@@ -5,6 +5,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
 import java.awt.Desktop
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import java.io.File
 import java.net.URI
 import tv.jumpflix.data.CatalogClient
@@ -33,6 +35,14 @@ fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "JUMPFLIX", state = state,
         icon = painterResource(Res.drawable.mascot)) {
         SideEffect { window.minimumSize = java.awt.Dimension(960, 640) }
+        DisposableEffect(window) {
+            val titleBar = object : WindowAdapter() {
+                override fun windowOpened(event: WindowEvent) { darkWindowsTitleBar(window) }
+            }
+            window.addWindowListener(titleBar)
+            if (window.isDisplayable) darkWindowsTitleBar(window)
+            onDispose { window.removeWindowListener(titleBar) }
+        }
         val repository = remember {
             CatalogClient(File(cacheDirectory(), "catalog-v1.json"),
                 { requireNotNull(Thread.currentThread().contextClassLoader.getResourceAsStream("catalog-seed.json")).bufferedReader().use { it.readText() } },

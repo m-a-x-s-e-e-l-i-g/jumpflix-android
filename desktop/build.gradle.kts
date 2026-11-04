@@ -18,6 +18,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
+    implementation("net.java.dev.jna:jna:5.19.1")
     testImplementation(kotlin("test-junit"))
     testImplementation(compose.desktop.uiTestJUnit4)
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

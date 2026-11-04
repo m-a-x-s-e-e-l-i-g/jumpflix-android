@@ -1,5 +1,17 @@
 # Alpha validation — 2026-11-01
 
+## Windows native title bar — 2026-11-04
+
+- Desktop uses Windows DWM dark caption buttons, a #100F0F caption background and
+  #F5F2EE title text, preserving the system frame and window controls.
+- Six desktop tests pass; the self-contained Windows app rebuilds and starts
+  without runtime errors. After a fresh launch, DWM dark mode reads back enabled
+  and a native window capture has the expected #100F0F caption pixels. The caption
+  and its control glyphs were visually inspected; the app is left open.
+- JNA's bundled JAR retains its license texts. Android/shared UI is unchanged.
+  Exact caption/text colours require supported Windows DWM attributes; older
+  Windows versions and other desktop platforms were not manually checked here.
+
 ## Verified locally
 
 - Windows build with JDK 17, Android SDK 35, AGP 8.9.2 and Gradle 8.11.1.
