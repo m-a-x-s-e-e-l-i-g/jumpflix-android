@@ -2,9 +2,9 @@
   <img src="app/src/main/res/drawable-nodpi/mascot.png" height="110" alt="JUMPFLIX popcorn character">
 </p>
 
-<h1 align="center">JUMPFLIX for Android</h1>
+<h1 align="center">JUMPFLIX Apps</h1>
 
-<p align="center">The parkour film archive, with a native app for Android phones and Android TV.</p>
+<p align="center">Parkour cinema for the big screen. Android TV first, Android phones, and a Compose Multiplatform desktop preview.</p>
 
 <p align="center">
   <a href="https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/actions/workflows/android.yml"><img src="https://github.com/m-a-x-s-e-e-l-i-g/jumpflix-android/actions/workflows/android.yml/badge.svg" alt="Android build"></a>
@@ -28,7 +28,13 @@
 - Sign in with your existing JUMPFLIX account or Google for XPOP, stats, ratings, and reviews.
 - Watch with JUMPFLIX player controls that fade away when idle, using touch or a TV remote.
 
-One APK supports both phone and TV layouts. Built with Kotlin, Jetpack Compose, and Media3.
+One APK supports both phone and TV layouts. Android TV remains the main target.
+Built with Kotlin, Compose Multiplatform, and Android Media3.
+
+The desktop preview targets **Windows, Linux and macOS**, with fullscreen browsing,
+arrow-key navigation, portrait posters, search and film/episode details. Playback
+opens in your browser; desktop account sign-in and watch tracking are not included
+yet. iOS and Apple TV are outside the current scope.
 
 ## A look inside
 
@@ -63,6 +69,8 @@ has been tested in an emulator; physical TV testing is still needed.
 - Watched activity, ratings, reviews, and XPOP use your JUMPFLIX account. Saved titles
   and unfinished resume positions currently stay on the device.
 - A saved catalog keeps browsing available when refresh fails. Streaming needs internet.
+- The public mobile catalog endpoint currently returns 404 (checked 4 November
+  2026), so new installations browse the bundled snapshot until that API is deployed.
 - Casting, offline video downloads, cross-device list/resume sync, and iOS are not included yet.
 
 ## Build it yourself
@@ -81,8 +89,23 @@ Run the local checks:
 
 ```sh
 ./gradlew :app:testDebugUnitTest :app:lintDebug
+./gradlew :shared:desktopTest :desktop:test
 node --test scripts/test-player-bridge.mjs
 ```
+
+Run the desktop TV preview with JDK 17:
+
+```sh
+./gradlew :desktop:run
+```
+
+Use arrow keys to move, Enter to select, Esc to go back, and F11 for fullscreen.
+The desktop preview also supports mouse input and remotes that send keyboard keys.
+Build a self-contained app with `./gradlew :desktop:createDistributable` on the
+target OS. Installers use `:desktop:packageMsi`, `:desktop:packageDeb` or
+`:desktop:packageDmg`; signing and platform packaging tools require local setup.
+Desktop builds currently also need the Android SDK because the project includes
+the Android app and shared Android target.
 
 More detail: [development guide](docs/DEVELOPMENT.md) · [test and device validation](VALIDATION.md).
 

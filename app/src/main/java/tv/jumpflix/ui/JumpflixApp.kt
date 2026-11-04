@@ -229,14 +229,7 @@ fun JumpflixApp(model: CatalogViewModel, television: Boolean, initialSlug: Strin
 
 @Composable
 internal fun Brand(modifier: Modifier = Modifier, compact: Boolean = false) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
-        Image(painterResource(R.drawable.mascot), "JUMPFLIX popcorn character", Modifier.size(if (compact) 26.dp else 49.dp, if (compact) 34.dp else 64.dp))
-        Column {
-            Text("JUMPFLIX", color = Accent, fontSize = if (compact) 24.sp else 39.sp, letterSpacing = if (compact) 1.5.sp else 3.sp,
-                fontFamily = FontFamily(Font(R.font.bebas_neue)), modifier = Modifier.graphicsLayer { rotationX = 12f; scaleX = 1.04f })
-            if (!compact) Text("PARKOUR CINEMA", color = Muted, fontSize = 8.sp, letterSpacing = 2.sp)
-        }
-    }
+    BrandMark(painterResource(R.drawable.mascot), FontFamily(Font(R.font.bebas_neue)), modifier, compact)
 }
 
 @Composable
@@ -350,21 +343,10 @@ private fun FilmRow(title: String, films: List<CatalogItem>, tv: Boolean, progre
 @Composable
 internal fun FilmCard(item: CatalogItem, tv: Boolean, modifier: Modifier = Modifier, progress: Progress? = null, watched: Boolean = false, onClick: () -> Unit) {
     val content: @Composable ColumnScope.() -> Unit = {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Surface)) {
-            AsyncImage(item.thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            if (item.paid || !item.available) Text(if (!item.available) "UNAVAILABLE" else "PAID", color = Ink, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Background.copy(alpha = 0.85f), RoundedCornerShape(4.dp)).padding(5.dp))
-            if (watched) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Background.copy(alpha = .95f), RoundedCornerShape(6.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(14.dp), tint = Ink)
-                Text("Watched", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-            }
-            if (!watched && progress?.inProgress == true && progress.durationMs > 0) {
-                LinearProgressIndicator(progress = { (progress.positionMs.toFloat() / progress.durationMs).coerceIn(0f, 1f) }, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp), color = Accent, trackColor = Surface)
-            }
-        }
-        Column(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(item.title, style = MaterialTheme.typography.titleSmall, color = Ink, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(item.metadata.ifBlank { if (item.type == "series") "Series" else "Film" }, color = Muted, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        FilmPosterContent(item.title, item.metadata.ifBlank { if (item.type == "series") "Series" else "Film" },
+            item.paid, item.available, watched,
+            progress?.takeIf { it.inProgress && it.durationMs > 0 }?.let { it.positionMs.toFloat() / it.durationMs }) { imageModifier ->
+            AsyncImage(item.thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = imageModifier)
         }
     }
     if (tv) {

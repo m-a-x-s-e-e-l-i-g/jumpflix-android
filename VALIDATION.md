@@ -713,3 +713,29 @@ screenshots remain in ignored local build/artifact directories.
   artifacts/phone-alpha25-*. No app-process AndroidRuntime errors were reported
   in the inspected buffer. Physical Android TV and broad device/FPS testing remain
   unverified.
+
+## Compose Multiplatform migration — 2026-11-04 (alpha 26)
+
+- Android TV remains the primary target. Android phone support is retained; desktop
+  JVM targets Windows, Linux and macOS. No iOS/tvOS targets are configured.
+- Shared Compose branding, poster content, palette and typography are consumed by
+  Android and desktop. Shared JVM catalog/search/home-pick models and paginated
+  caching replace copied platform implementations. Android account/session and
+  library formats, application ID, TV focus card and playback integration remain.
+- Local checks: 65 Android JVM tests, 6 shared catalog/cache tests, 6 desktop tests,
+  and 4 provider bridge tests pass. Android debug/test APKs build. Lint: zero errors,
+  43 warnings. Desktop tests cover arrow/Enter navigation, search, detail/back focus
+  restoration, fullscreen shortcut, episode retry and unavailable episode filtering.
+- TV API 34 emulator: 23 selected instrumentation tests pass across browsing/search,
+  profiles, shared watched cards, Home/featured/history filtering, series and player
+  control visibility. No physical phone or Android TV was connected for this run.
+- Windows self-contained app image built, launched with its bundled Java runtime,
+  and produced a responsive JUMPFLIX window. Home/details screenshots from desktop
+  Compose tests were visually inspected. The app image includes the catalog seed,
+  real mascot, fonts and licenses, and excludes Android auth configuration.
+- The desktop preview delegates playback to the browser and has no desktop account
+  or watch tracking. Linux/macOS CI builds are configured; hardware playback,
+  arbitrary remote protocols, HDMI-CEC and physical TV performance are unverified.
+- Read-only production probe: the public mobile catalog endpoint returned HTTP 404
+  on 2026-11-04. Both clients use the saved/bundled catalog fallback. API deployment
+  is separate from this client migration; no website deployment was performed.

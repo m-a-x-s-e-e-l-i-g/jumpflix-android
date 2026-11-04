@@ -2,8 +2,43 @@
 
 See the [README](../README.md) for installation and a quick overview.
 
-A native Kotlin/Jetpack Compose client for the JUMPFLIX parkour film archive.
-One APK adapts to phone touch input or Android TV / Google TV remote navigation.
+A TV-first Kotlin/Compose Multiplatform client for the JUMPFLIX parkour film archive.
+Android TV / Google TV is the primary target; one APK also supports phone touch input.
+Windows, Linux and macOS share a desktop JVM target. iOS and tvOS are out of scope.
+
+## Project structure
+
+- `app`: the existing Android phone/TV app, including Media3/provider playback,
+  Android account flows, Keystore session storage, XPOP and device-local library.
+- `shared/src/commonMain`: Compose branding, poster content, palette and typography.
+  Android retains its native TV focus-card container around the shared poster.
+- `shared/src/jvmMain`: catalog models, search normalization, daily featured picks,
+  progress model, and paginated catalog download/cache validation. Android and
+  desktop compile the same source directory against their own JVM APIs. Java APIs
+  are intentional: all currently selected platforms support JVM bytecode.
+- `desktop`: a Compose desktop TV preview with real catalog browsing, cached/seed
+  fallback, search, details, playable seasons/episodes, visible keyboard focus and
+  fullscreen. Official sources open in a browser. It does not claim account,
+  watched/resume or embedded-player parity with Android.
+
+Keep shared code in this repository instead of copying it into one repo per OS.
+Move additional UI and logic when a platform needs it; playback, input integration
+and secure storage remain platform-specific. Desktop reuses the original Android
+brand/font/license assets through its resource source set, without bundling Android
+account configuration. The public repository URL stays unchanged.
+
+Run `./gradlew :desktop:run`; use arrows/Enter, Escape and F11. Remotes must send
+keyboard events; HDMI-CEC and arbitrary remote protocols are not integrated.
+`:desktop:createDistributable` bundles the required Java runtime. The GitHub Actions
+matrix builds desktop app images on Windows, Linux and macOS; a native package must
+be built on its matching OS. macOS uses package version `1.0.0` internally because
+the DMG packager requires a positive major version; this remains a desktop preview.
+
+The migration pins Compose Multiplatform 1.8.2 to the existing Kotlin 2.1.20 /
+Compose 1.8 Android toolchain. It does not upgrade the entire build to a newer
+framework generation at the same time as extracting shared code.
+
+## Android behavior
 
 The current UI uses a compact branded phone masthead, portrait browse cards,
 wide featured artwork, and shared primary/secondary controls. The 48dp phone header

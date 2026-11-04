@@ -4,10 +4,6 @@ package tv.jumpflix.data
 import android.content.Context
 import org.json.JSONObject
 
-data class Progress(val key: String, val itemId: String, val title: String, val positionMs: Long, val durationMs: Long, val updatedAt: Long) {
-    val inProgress: Boolean get() = positionMs >= 10_000 && (durationMs <= 0 || positionMs < durationMs * 0.95)
-}
-
 /** Device-local library. Account sync is deliberately not implied by this store. */
 class LibraryStore(context: Context) {
     private val prefs = context.getSharedPreferences("jumpflix-library", Context.MODE_PRIVATE)

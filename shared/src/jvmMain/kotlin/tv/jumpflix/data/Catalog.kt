@@ -77,7 +77,7 @@ data class CatalogItem(
         .filter { it.episodes.isNotEmpty() }
     private val searchText = normalizedSearch(listOf(title, description, creators.joinToString(" "), starring.joinToString(" ")).joinToString(" "))
     fun matches(query: String, music: List<MusicCredit> = emptyList()): Boolean = matches(catalogSearchTerms(query), music)
-    internal fun matches(terms: List<String>, music: List<MusicCredit> = emptyList()): Boolean = terms.all { word ->
+    fun matches(terms: List<String>, music: List<MusicCredit> = emptyList()): Boolean = terms.all { word ->
         searchText.contains(word) || music.any { it.searchText.contains(word) }
     }
 
@@ -104,8 +104,8 @@ data class CatalogItem(
 
 private val searchMarks = Regex("\\p{M}+")
 private val searchWords = Regex("\\s+")
-internal fun catalogSearchTerms(query: String): List<String> = normalizedSearch(query).trim().split(searchWords)
-internal fun normalizedSearch(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
+fun catalogSearchTerms(query: String): List<String> = normalizedSearch(query).trim().split(searchWords)
+fun normalizedSearch(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
     .replace(searchMarks, "").lowercase(java.util.Locale.ROOT)
 
 fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }

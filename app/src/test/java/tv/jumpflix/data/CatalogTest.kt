@@ -11,7 +11,7 @@ class CatalogTest {
         assertTrue(catalog.items.isNotEmpty())
         assertEquals(catalog.items.size, catalog.items.map { it.id }.distinct().size)
         assertTrue(catalog.items.all { it.url.startsWith("https://www.jumpflix.tv/") })
-        assertTrue(catalog.items.filter { it.paid }.all { it.playback == null || it.playback.kind == "external" })
+        assertTrue(catalog.items.filter { it.paid }.all { val source = it.playback; source == null || source.kind == "external" })
         assertTrue(catalog.items.filter { !it.available }.all { it.playback == null })
         catalog.items.firstOrNull { it.title == "KEVIN FRANZÉN" }?.let { assertTrue(it.matches("kevin franzen")) }
     }
