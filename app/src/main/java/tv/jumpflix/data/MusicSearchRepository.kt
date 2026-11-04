@@ -13,10 +13,6 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class MusicCredit(val title: String, val artist: String) {
-    internal val searchText = normalizedSearch("$title $artist")
-}
-
 internal fun musicSearchIndex(rows: JSONArray): Map<String, List<MusicCredit>> {
     val credits = linkedMapOf<String, MutableList<MusicCredit>>()
     for (index in 0 until rows.length()) {

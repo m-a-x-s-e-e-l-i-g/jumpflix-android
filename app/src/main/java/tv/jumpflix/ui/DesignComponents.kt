@@ -71,14 +71,6 @@ internal fun AppIconAction(label: String, icon: ImageVector, tv: Boolean, modifi
     } else IconButton(action, target.border(1.dp, Outline, RoundedCornerShape(12.dp))) { Icon(icon, null, tint = Ink) }
 }
 
-@Composable
-internal fun PageHeading(title: String, subtitle: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = Ink, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        subtitle?.let { Text(it, color = Muted, style = MaterialTheme.typography.bodyMedium) }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RefreshableScreen(list: LazyListState, loading: Boolean, refresh: () -> Unit, tv: Boolean,

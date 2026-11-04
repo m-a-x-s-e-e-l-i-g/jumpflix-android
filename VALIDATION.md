@@ -1,5 +1,17 @@
 # Alpha validation — 2026-11-01
 
+## Windows native title bar — 2026-11-04
+
+- Desktop uses Windows DWM dark caption buttons, a #100F0F caption background and
+  #F5F2EE title text, preserving the system frame and window controls.
+- Six desktop tests pass; the self-contained Windows app rebuilds and starts
+  without runtime errors. After a fresh launch, DWM dark mode reads back enabled
+  and a native window capture has the expected #100F0F caption pixels. The caption
+  and its control glyphs were visually inspected; the app is left open.
+- JNA's bundled JAR retains its license texts. Android/shared UI is unchanged.
+  Exact caption/text colours require supported Windows DWM attributes; older
+  Windows versions and other desktop platforms were not manually checked here.
+
 ## Verified locally
 
 - Windows build with JDK 17, Android SDK 35, AGP 8.9.2 and Gradle 8.11.1.
@@ -713,3 +725,48 @@ screenshots remain in ignored local build/artifact directories.
   artifacts/phone-alpha25-*. No app-process AndroidRuntime errors were reported
   in the inspected buffer. Physical Android TV and broad device/FPS testing remain
   unverified.
+
+## Compose Multiplatform migration — 2026-11-04 (alpha 26)
+
+- Android TV remains the primary target. Android phone support is retained; desktop
+  JVM targets Windows, Linux and macOS. No iOS/tvOS targets are configured.
+- Shared Compose branding, poster content, palette and typography are consumed by
+  Android and desktop. Shared JVM catalog/search/home-pick models and paginated
+  caching replace copied platform implementations. Android account/session and
+  library formats, application ID, TV focus card and playback integration remain.
+- Local checks: 65 Android JVM tests, 6 shared catalog/cache tests, 6 desktop tests,
+  and 4 provider bridge tests pass. Android debug/test APKs build. Lint: zero errors,
+  43 warnings. Desktop tests cover arrow/Enter navigation, search, detail/back focus
+  restoration, fullscreen shortcut, episode retry and unavailable episode filtering.
+- TV API 34 emulator: 23 selected instrumentation tests pass across browsing/search,
+  profiles, shared watched cards, Home/featured/history filtering, series and player
+  control visibility. No physical phone or Android TV was connected for this run.
+- Windows self-contained app image built, launched with its bundled Java runtime,
+  and produced a responsive JUMPFLIX window. Home/details screenshots from desktop
+  Compose tests were visually inspected. The app image includes the catalog seed,
+  real mascot, fonts and licenses, and excludes Android auth configuration.
+- The desktop preview delegates playback to the browser and has no desktop account
+  or watch tracking. Linux/macOS CI builds are configured; hardware playback,
+  arbitrary remote protocols, HDMI-CEC and physical TV performance are unverified.
+- Read-only production probe: the public mobile catalog endpoint returned HTTP 404
+  on 2026-11-04. Both clients use the saved/bundled catalog fallback. API deployment
+  is separate from this client migration; no website deployment was performed.
+
+## TV remote and duplicate branding — 2026-11-04 (alpha 27)
+
+- Reproduced two alpha 26 failures with native key events and no forced test focus:
+  Home displayed two mascot images, and Back from Search left focus on the Search
+  menu entry after the destination had returned to Home.
+- Android TV explicitly requests the active menu's focus on entry/return. Home and
+  About use the wordmark without a second mascot; the original character stays in
+  the TV menu. Phone and desktop branding retain their existing defaults.
+- Enabled hardware keyboard input (hw.keyboard=yes) in the local TV emulator and
+  cold-restarted it. This is emulator setup, not a setting required by the app.
+- Alpha 27 installed on the TV API 34 emulator. Twenty instrumentation checks pass:
+  five native D-pad/keyboard navigation and branding regressions, nine browsing
+  smoke checks, and six Home/history checks. Native navigation covers menu → film,
+  Back → Home, Search/Enter, About/Back, and horizontal portrait-card movement.
+- Sixty-five Android unit tests, six shared tests and six desktop tests pass.
+  Android debug and instrumentation APKs build; lint reports 0 errors, 43 warnings.
+- Physical TV/remotes remain untested. The visible emulator is left open for manual
+  keyboard and on-screen remote testing.

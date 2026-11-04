@@ -52,5 +52,12 @@ https://github.com/google/material-design-icons . License text is retained in
 
 AndroidX/Compose/Media3, OkHttp, Coil, Kotlin and JUnit retain their upstream
 licenses. Versions are pinned in `app/build.gradle.kts` and `build.gradle.kts`.
+Compose Multiplatform and Kotlin coroutines are Apache-2.0 dependencies; desktop
+uses Coil 3 for image loading while Android retains Coil 2. Desktop/shared versions
+are pinned in their module build files. Desktop bundles the same supplied brand
+assets, font notices and GPL text through its resource source set.
+Windows native title-bar colours use [JNA](https://github.com/java-native-access/jna)
+5.19.1 under its Apache-2.0 license option. Its license and notices remain in the
+bundled dependency JAR. Windows DWM itself is supplied by the operating system.
 JUMPFLIX branding is supplied by the project owner. Catalog/provider artwork is
 remote third-party content, not relicensed as application source.
