@@ -41,7 +41,8 @@ jobs:
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - run: bash ./gradlew :shared:desktopTest :desktop:test :desktop:createDistributable
+      - run: tar -czf jumpflix-desktop-${{ runner.os }}.tar.gz -C desktop/build/compose/binaries/main/app .
       - uses: actions/upload-artifact@v4
         with:
           name: jumpflix-desktop-${{ matrix.os }}
-          path: desktop/build/compose/binaries/main/app/
+          path: jumpflix-desktop-${{ runner.os }}.tar.gz
