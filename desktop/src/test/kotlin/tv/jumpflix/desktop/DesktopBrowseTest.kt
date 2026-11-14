@@ -73,6 +73,17 @@ class DesktopBrowseTest {
         ui.onNodeWithText("Explore").assertIsDisplayed()
     }
 
+    @Test fun `paid film opens its access page even when it has a video source`() {
+        val film = fixture().visibleItems.first { it.type == "movie" && it.playback?.kind == "youtube" }.copy(paid = true)
+        var opened: String? = null
+        ui.setContent { DesktopBrowse(Catalog(listOf(film), "fixture"), false, null, {}, { error("Not a series") },
+            false, {}, { opened = it }, { error("Paid film opened the embedded player") }) }
+        ui.onNodeWithText("Search").performClick()
+        ui.onNodeWithTag("poster-${film.id}").performClick()
+        ui.onNodeWithText("View access options").performClick()
+        assertEquals(film.url, opened)
+    }
+
     private fun screenshot(name: String) {
         val image = ui.onRoot().captureToImage()
         val pixels = image.toPixelMap()
