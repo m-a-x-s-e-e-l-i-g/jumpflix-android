@@ -286,7 +286,7 @@ private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: (
                         }
                         TvButton(label, Icons.Outlined.PlayArrow, active = true) {
                             val url = playbackUrl(film)
-                            if (source != null) play(DesktopPlayback(film.title, source, url)) else open(url)
+                            if (source != null) play(DesktopPlayback(film.title, source, url, websitePlayerUrl(film.slug))) else open(url)
                         }
                     }
                 }
@@ -302,11 +302,14 @@ private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: (
                         items(seasons.size) { index -> TvButton(seasons[index].title, active = season == index) { season = index } }
                     }
                 }
-                items(seasons[season.coerceIn(0, seasons.lastIndex)].episodes, key = { it.id }) { episode ->
+                val selectedSeason = seasons[season.coerceIn(0, seasons.lastIndex)]
+                items(selectedSeason.episodes, key = { it.id }) { episode ->
                     TvButton("${episode.position}. ${episode.title}", Icons.Outlined.PlayArrow, Modifier.fillMaxWidth()) {
                         episode.playback?.let { source ->
-                            if (source.embeddedOnDesktop) play(DesktopPlayback(episode.title, source, if (source.native) film.url else source.url))
-                            else open(source.url)
+                            if (source.embeddedOnDesktop) {
+                                play(DesktopPlayback(episode.title, source, if (source.native) film.url else source.url,
+                                    websitePlayerUrl(film.slug, selectedSeason.number, episode.position)))
+                            } else open(source.url)
                         }
                     }
                 }

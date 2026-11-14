@@ -31,6 +31,16 @@ class DesktopTest {
         assertEquals(File(home, "custom-cache/Jumpflix"), cacheDirectory("Linux", home, mapOf("XDG_CACHE_HOME" to File(home, "custom-cache").path)))
     }
 
+    @Test fun `website player routes are scoped to the selected title and provider embeds`() {
+        val url = websitePlayerUrl("imagine-theta")
+        assertEquals("https://www.jumpflix.tv/player/movie/imagine-theta", url.toASCIIString())
+        assertTrue(allowsWebsitePlayerNavigation(url.toASCIIString(), url))
+        assertTrue(allowsWebsitePlayerNavigation("https://www.youtube-nocookie.com/embed/abcdefghijk?controls=0", url))
+        assertFalse(allowsWebsitePlayerNavigation("https://www.jumpflix.tv/", url))
+        assertFalse(allowsWebsitePlayerNavigation("https://www.youtube.com/watch?v=abcdefghijk", url))
+        assertFalse(allowsWebsitePlayerNavigation("https://player.vimeo.com.evil.example/video/123456", url))
+    }
+
     @Test fun `player preserves Vimeo privacy hash and confines player navigation`() {
         val vimeo = PlaybackSource("vimeo", "https://vimeo.com/123456/abc123")
         PlayerPage(vimeo).use { page ->

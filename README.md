@@ -33,8 +33,8 @@ Built with Kotlin, Compose Multiplatform, and Android Media3.
 
 The desktop preview targets **Windows, Linux and macOS**, with fullscreen browsing,
 arrow-key navigation, portrait posters, search and film/episode details. Current
-desktop source includes in-app playback for embeddable YouTube and Vimeo videos
-and direct streams. Desktop accounts and watch tracking remain Android features.
+desktop source opens the JUMPFLIX website player inside the app, with a local player
+as a fallback. The desktop app has no account sign-in.
 
 ## A look inside
 

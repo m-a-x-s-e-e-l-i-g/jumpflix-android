@@ -50,7 +50,11 @@ class DesktopBrowseTest {
         ui.setContent { DesktopBrowse(Catalog(listOf(series), "fixture"), false, null, {}, {
             attempts++
             if (attempts == 1) error("offline") else series
-        }, false, {}, { opened = it }, { androidx.compose.material3.Text("Embedded episode") }) }
+        }, false, {}, { opened = it }, { playback ->
+            assertEquals("/player/series/${series.slug}", playback.websiteUrl.path)
+            assertEquals("season=1&episode=7", playback.websiteUrl.query)
+            androidx.compose.material3.Text("Embedded episode")
+        }) }
         ui.onNodeWithText("Search").performClick()
         ui.onNodeWithTag("poster-${series.id}").performClick()
         ui.onNodeWithText("Retry episodes").performClick()

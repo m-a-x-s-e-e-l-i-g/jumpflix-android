@@ -23,7 +23,13 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 import tv.jumpflix.data.PlaybackSource
 
-internal data class DesktopPlayback(val title: String, val source: PlaybackSource, val fallbackUrl: String)
+internal data class DesktopPlayback(val title: String, val source: PlaybackSource, val fallbackUrl: String, val websiteUrl: URI)
+
+internal fun websitePlayerUrl(slug: String, season: Int? = null, episode: Int? = null): URI {
+    val kind = if (season == null) "movie" else "series"
+    val query = if (season == null) null else "season=$season&episode=$episode"
+    return URI("https", "www.jumpflix.tv", "/player/$kind/$slug", query, null)
+}
 
 internal val PlaybackSource.embeddedOnDesktop: Boolean
     get() = native || kind in setOf("youtube", "vimeo") && providerId != null
@@ -53,7 +59,10 @@ internal fun EmbeddedVideo(playback: DesktopPlayback) {
             finally { session?.close() }
         }
     }
-    LaunchedEffect(page) {
+    LaunchedEffect(view) {
+        val engine = view ?: return@LaunchedEffect
+        delay(5_000)
+        if (!ready && error == null) page?.let { engine.setUrl(it.url) }
         delay(15_000)
         if (!ready && error == null) error = "The video player could not start. Try opening the video in your browser."
     }
@@ -71,17 +80,19 @@ internal fun EmbeddedVideo(playback: DesktopPlayback) {
                         setPermissionHandler { it.deny() }
                         setPasswordManagerEnabled(false)
                         setDefaultContextMenuEnabled(false)
-                        setNavigationHandler { session.allowsNavigation(it.url()) }
+                        setNavigationHandler { event ->
+                            session.allowsNavigation(event.url()) || allowsWebsitePlayerNavigation(event.url(), playback.websiteUrl)
+                        }
                         addJavascriptCallback("jumpflixPlayerStatus") { payload ->
                             val status = runCatching { JSONObject(payload).getJSONArray("args").getString(0) }.getOrNull()
                             SwingUtilities.invokeLater {
                                 when (status) {
-                                    "ready" -> ready = true
+                                    "ready", "hosted-ready" -> ready = true
                                     "error" -> error = "This stream could not be played here. Try opening it in your browser."
                                 }
                             }
                         }
-                        setUrl(session.url)
+                        setUrl(playback.websiteUrl.toASCIIString())
                     }.also { view = it }
                 } catch (_: Exception) {
                     error = "Could not start the system video player."
@@ -94,6 +105,17 @@ internal fun EmbeddedVideo(playback: DesktopPlayback) {
         } else {
             Text(message.orEmpty(), color = Color.White, modifier = Modifier.padding(24.dp))
         }
+    }
+}
+
+internal fun allowsWebsitePlayerNavigation(location: String, player: URI): Boolean {
+    val target = runCatching { browserUri(location) }.getOrNull() ?: return false
+    if (target == player) return true
+    if (target.port != -1 && target.port != 443) return false
+    return when (target.host) {
+        "www.youtube.com", "www.youtube-nocookie.com" -> target.path.matches(Regex("/embed/[A-Za-z0-9_-]{11}"))
+        "player.vimeo.com" -> target.path.matches(Regex("/video/[0-9]+"))
+        else -> false
     }
 }
 
