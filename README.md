@@ -32,9 +32,9 @@ One APK supports both phone and TV layouts. Android TV remains the main target.
 Built with Kotlin, Compose Multiplatform, and Android Media3.
 
 The desktop preview targets **Windows, Linux and macOS**, with fullscreen browsing,
-arrow-key navigation, portrait posters, search and film/episode details. Playback
-opens in your browser; desktop account sign-in and watch tracking are not included
-yet. iOS and Apple TV are outside the current scope.
+arrow-key navigation, portrait posters, search and film/episode details. Current
+desktop source opens the JUMPFLIX website player inside the app, with a local player
+as a fallback. The desktop app has no account sign-in.
 
 ## A look inside
 
@@ -90,9 +90,9 @@ different signing identity; use the release APK for consistent updates.
 Phone playback has been tested on a Nothing A063 running Android 15. Android TV
 has been tested in an emulator; physical TV testing is still needed.
 
-Desktop playback currently opens a browser; desktop sign-in, XPOP and watch
-tracking are not implemented. Windows has been manually checked; Linux/macOS have
-passed build and automated UI checks in CI, with manual hardware testing pending.
+The downloadable alpha27 desktop builds open playback in your browser. Windows
+has been manually checked. Linux and macOS have passed build and automated UI
+checks in CI, with manual hardware testing pending.
 Checksums and a standalone installation guide are included with the release.
 
 ## Playback and account notes
@@ -131,6 +131,12 @@ Run the desktop TV preview with JDK 17:
 ```sh
 ./gradlew :desktop:run
 ```
+
+In-app playback uses the system web engine. Windows needs the Microsoft Edge
+WebView2 Runtime. macOS includes WKWebView. On Debian/Ubuntu, install
+`libwebkit2gtk-4.1-0` and `gstreamer1.0-libav` for WebKitGTK and common video
+codecs. If a provider restricts embedding, use the player's **Open in browser**
+button.
 
 Use arrow keys to move, Enter to select, Esc to go back, and F11 for fullscreen.
 The desktop preview also supports mouse input and remotes that send keyboard keys.

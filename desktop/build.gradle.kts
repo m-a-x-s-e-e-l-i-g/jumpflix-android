@@ -19,6 +19,8 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
     implementation("net.java.dev.jna:jna:5.19.1")
+    implementation("ca.weblite:webview:1.14.0")
+    runtimeOnly("org.mvnpm:hls.js:1.7.4")
     testImplementation(kotlin("test-junit"))
     testImplementation(compose.desktop.uiTestJUnit4)
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
@@ -56,7 +58,7 @@ compose.desktop {
             vendor = "JUMPFLIX"
             copyright = "JUMPFLIX contributors"
             licenseFile.set(rootProject.file("LICENSE"))
-            modules("jdk.crypto.ec", "jdk.unsupported", "jdk.accessibility")
+            modules("jdk.crypto.ec", "jdk.unsupported", "jdk.accessibility", "jdk.httpserver")
             windows { menuGroup = "Jumpflix"; shortcut = true }
             macOS { bundleID = "tv.jumpflix.desktop"; packageVersion = "1.0.0" }
             linux { debMaintainer = "JUMPFLIX contributors" }

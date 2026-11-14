@@ -18,8 +18,12 @@ Windows, Linux and macOS share a desktop JVM target. iOS and tvOS are out of sco
   are intentional: all currently selected platforms support JVM bytecode.
 - `desktop`: a Compose desktop TV preview with real catalog browsing, cached/seed
   fallback, search, details, playable seasons/episodes, visible keyboard focus and
-  fullscreen. Official sources open in a browser. It does not claim account,
-  watched/resume or embedded-player parity with Android.
+  fullscreen. SwingWebView opens the player-only JUMPFLIX website route for the
+  film or episode. That route renders the website's VideoPlayer component.
+  If the website player does not start, the desktop app serves its own official
+  provider embeds and bundled hls.js over loopback, then closes the server on Back.
+  Paid titles and external sources use browser handoff. Desktop accounts and
+  watched/resume tracking are still pending.
 
 Keep shared code in this repository instead of copying it into one repo per OS.
 Move additional UI and logic when a platform needs it; playback, input integration

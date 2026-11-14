@@ -22,13 +22,18 @@ class DesktopBrowseTest {
         val catalog = fixture()
         val film = catalog.visibleItems.first { it.title == "KEVIN FRANZÉN" }
         var fullscreenChanges = 0
-        ui.setContent { DesktopBrowse(catalog, false, null, {}, { error("Not a series") }, false, { fullscreenChanges++ }, {}) }
+        ui.setContent { DesktopBrowse(catalog, false, null, {}, { error("Not a series") }, false, { fullscreenChanges++ },
+            { error("Unexpected browser handoff") }, { androidx.compose.material3.Text("Embedded video") }) }
         ui.onNodeWithText("Home").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
         ui.onNodeWithText("Search").assertIsFocused().performKeyInput { pressKey(Key.Enter) }
         ui.onNodeWithTag("desktop-search").performTextInput("kevin franzen")
         ui.onNodeWithTag("poster-${film.id}").assertExists().performClick()
-        ui.onNodeWithText("Watch in browser").assertExists()
+        ui.onNodeWithText("Watch film").assertExists()
         screenshot("desktop-detail")
+        ui.onNodeWithText("Watch film").performClick()
+        ui.onNodeWithText("Embedded video").assertExists()
+        ui.onNodeWithText("Back").assertIsFocused().performKeyInput { pressKey(Key.Escape) }
+        ui.onNodeWithText("Watch film").assertExists()
         ui.onNodeWithText("Back").assertIsFocused().performKeyInput { pressKey(Key.Escape) }
         ui.onNodeWithTag("desktop-search").assertTextContains("kevin franzen")
         ui.onNode(hasText("Search") and hasClickAction()).assertIsFocused()
@@ -45,13 +50,20 @@ class DesktopBrowseTest {
         ui.setContent { DesktopBrowse(Catalog(listOf(series), "fixture"), false, null, {}, {
             attempts++
             if (attempts == 1) error("offline") else series
-        }, false, {}, { opened = it }) }
+        }, false, {}, { opened = it }, { playback ->
+            assertEquals("/player/series/${series.slug}", playback.websiteUrl.path)
+            assertEquals("season=1&episode=7", playback.websiteUrl.query)
+            androidx.compose.material3.Text("Embedded episode")
+        }) }
         ui.onNodeWithText("Search").performClick()
         ui.onNodeWithTag("poster-${series.id}").performClick()
         ui.onNodeWithText("Retry episodes").performClick()
         ui.onNodeWithText("7. Playable episode").assertExists().performClick()
         ui.onNodeWithText("9. Hidden episode").assertDoesNotExist()
         assertEquals(2, attempts)
+        ui.onNodeWithText("Embedded episode").assertExists()
+        assertNull(opened)
+        ui.onNodeWithText("Open in browser").performClick()
         assertEquals("https://vimeo.com/123456", opened)
     }
 
@@ -63,6 +75,17 @@ class DesktopBrowseTest {
         ui.onNodeWithText("Explore").performScrollTo().assertIsDisplayed()
         ui.onNodeWithText("Randomize").performClick()
         ui.onNodeWithText("Explore").assertIsDisplayed()
+    }
+
+    @Test fun `paid film opens its access page even when it has a video source`() {
+        val film = fixture().visibleItems.first { it.type == "movie" && it.playback?.kind == "youtube" }.copy(paid = true)
+        var opened: String? = null
+        ui.setContent { DesktopBrowse(Catalog(listOf(film), "fixture"), false, null, {}, { error("Not a series") },
+            false, {}, { opened = it }, { error("Paid film opened the embedded player") }) }
+        ui.onNodeWithText("Search").performClick()
+        ui.onNodeWithTag("poster-${film.id}").performClick()
+        ui.onNodeWithText("View access options").performClick()
+        assertEquals(film.url, opened)
     }
 
     private fun screenshot(name: String) {
