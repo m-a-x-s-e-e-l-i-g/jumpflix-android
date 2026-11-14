@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -61,7 +63,8 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 
 @Composable
 internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, refresh: () -> Unit,
-    series: suspend (String) -> CatalogItem, fullscreen: Boolean, toggleFullscreen: () -> Unit, openUrl: (String) -> Unit) {
+    series: suspend (String) -> CatalogItem, fullscreen: Boolean, toggleFullscreen: () -> Unit, openUrl: (String) -> Unit,
+    player: @Composable (DesktopPlayback) -> Unit = { EmbeddedVideo(it) }) {
     val font = FontFamily(Font(Res.font.noto_sans))
     val wordmark = FontFamily(Font(Res.font.bebas_neue))
     JumpflixMaterialTheme(font) {
@@ -71,14 +74,15 @@ internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, 
         val snackbar = remember { SnackbarHostState() }
         var destination by remember { mutableStateOf(Destination.Home) }
         var selected by remember { mutableStateOf<CatalogItem?>(null) }
+        var playback by remember { mutableStateOf<DesktopPlayback?>(null) }
         var query by remember { mutableStateOf("") }
         var editingSearch by remember { mutableStateOf(false) }
         var detailLoading by remember { mutableStateOf(false) }
         var detailError by remember { mutableStateOf<String?>(null) }
         var detailAttempt by remember { mutableIntStateOf(0) }
         val visible = remember(catalog) { catalog?.visibleItems.orEmpty() }
-        LaunchedEffect(selected?.id, destination) {
-            if (selected == null) navigationFocus.getValue(destination).requestFocus()
+        LaunchedEffect(selected?.id, destination, playback) {
+            if (selected == null && playback == null) navigationFocus.getValue(destination).requestFocus()
         }
         // A refresh can remove a previously selected title, just as on Android.
         LaunchedEffect(visible) { if (selected != null && visible.none { it.id == selected?.id }) selected = null }
@@ -104,6 +108,7 @@ internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, 
             when (event.key) {
                 Key.F11 -> { toggleFullscreen(); true }
                 Key.Escape -> when {
+                    playback != null -> { playback = null; true }
                     selected != null -> { selected = null; true }
                     destination != Destination.Home -> { destination = Destination.Home; true }
                     fullscreen -> { toggleFullscreen(); true }
@@ -116,6 +121,27 @@ internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, 
                 else -> false
             }
         }) {
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp).zIndex(1f))
+            val playing = playback
+            if (playing != null) {
+                val backFocus = remember { FocusRequester() }
+                Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TvButton("Back", Icons.AutoMirrored.Outlined.ArrowBack, Modifier.focusRequester(backFocus)) { playback = null }
+                        Text(playing.title, Modifier.weight(1f), color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        TvButton(if (fullscreen) "Windowed" else "Fullscreen",
+                            if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, onClick = toggleFullscreen)
+                        TvButton("Open in browser", Icons.AutoMirrored.Outlined.OpenInNew) {
+                            playback = null
+                            open(playing.fallbackUrl)
+                        }
+                    }
+                    player(playing)
+                }
+                LaunchedEffect(playing) { backFocus.requestFocus() }
+                return@Box
+            }
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.width(178.dp).fillMaxHeight().background(Surface.copy(alpha = .5f)).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -132,10 +158,11 @@ internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, 
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     val item = selected
                     when {
-                        item != null -> Details(item, detailLoading, detailError, { selected = null }, { detailAttempt++ }, open)
+                        item != null -> Details(item, detailLoading, detailError, { selected = null }, { detailAttempt++ }, open,
+                            { playback = it })
                         destination == Destination.About -> Column(Modifier.padding(36.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             PageHeading("JUMPFLIX", "Parkour cinema, made for the big screen.")
-                            Text("This desktop preview includes browsing, search and film/episode discovery. Playback opens in your browser. Account sign-in, XPOP and local watch tracking are currently available in the Android app.", color = Muted)
+                            Text("Watch films and episodes in JUMPFLIX. Some titles need to open in a browser. Account sign-in, XPOP and local watch tracking are currently available in the Android app.", color = Muted)
                             Text("Arrow keys move focus · Enter selects · Esc goes back · F11 toggles fullscreen", color = Ink)
                             Text("${visible.size} available titles · Catalog ${catalog?.generatedAt ?: "not loaded"}", color = Muted)
                             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -164,7 +191,6 @@ internal fun DesktopBrowse(catalog: Catalog?, loading: Boolean, error: String?, 
                     }
                 }
             }
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp))
         }
     }
 }
@@ -233,7 +259,8 @@ private fun Artwork(film: CatalogItem, modifier: Modifier, wide: Boolean = false
 }
 
 @Composable
-private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: () -> Unit, retry: () -> Unit, open: (String) -> Unit) {
+private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: () -> Unit, retry: () -> Unit,
+    open: (String) -> Unit, play: (DesktopPlayback) -> Unit) {
     val first = remember(film.id) { FocusRequester() }
     var season by remember(film.id) { mutableIntStateOf(0) }
     val seasons = film.availableSeasons
@@ -251,11 +278,17 @@ private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: (
                     if (film.starring.isNotEmpty()) Text(film.starring.joinToString(" · "), color = Muted)
                     Text(film.description, color = Muted, style = MaterialTheme.typography.bodyLarge)
                     if (film.type != "series" || film.paid) {
-                        TvButton(if (film.paid) "View access options" else "Watch in browser", Icons.Outlined.PlayArrow, active = true) {
-                            open(playbackUrl(film))
+                        val source = film.playback?.takeIf { !film.paid && it.embeddedOnDesktop }
+                        val label = when {
+                            film.paid -> "View access options"
+                            source != null -> "Watch film"
+                            else -> "Watch in browser"
+                        }
+                        TvButton(label, Icons.Outlined.PlayArrow, active = true) {
+                            val url = playbackUrl(film)
+                            if (source != null) play(DesktopPlayback(film.title, source, url)) else open(url)
                         }
                     }
-                    Text("Playback opens in your browser in this desktop preview.", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -270,7 +303,12 @@ private fun Details(film: CatalogItem, loading: Boolean, error: String?, back: (
                     }
                 }
                 items(seasons[season.coerceIn(0, seasons.lastIndex)].episodes, key = { it.id }) { episode ->
-                    TvButton("${episode.position}. ${episode.title}", Icons.Outlined.PlayArrow, Modifier.fillMaxWidth()) { episode.playback?.let { open(it.url) } }
+                    TvButton("${episode.position}. ${episode.title}", Icons.Outlined.PlayArrow, Modifier.fillMaxWidth()) {
+                        episode.playback?.let { source ->
+                            if (source.embeddedOnDesktop) play(DesktopPlayback(episode.title, source, if (source.native) film.url else source.url))
+                            else open(source.url)
+                        }
+                    }
                 }
             }
         }

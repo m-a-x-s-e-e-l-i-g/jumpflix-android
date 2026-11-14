@@ -18,8 +18,11 @@ Windows, Linux and macOS share a desktop JVM target. iOS and tvOS are out of sco
   are intentional: all currently selected platforms support JVM bytecode.
 - `desktop`: a Compose desktop TV preview with real catalog browsing, cached/seed
   fallback, search, details, playable seasons/episodes, visible keyboard focus and
-  fullscreen. Official sources open in a browser. It does not claim account,
-  watched/resume or embedded-player parity with Android.
+  fullscreen. SwingWebView uses the platform's web engine for official YouTube
+  and Vimeo embeds and HTML video. The player serves its page and bundled
+  hls.js over a temporary loopback address, then closes the server on Back.
+  Paid titles and external sources use browser handoff. Desktop accounts and
+  watched/resume tracking are still pending.
 
 Keep shared code in this repository instead of copying it into one repo per OS.
 Move additional UI and logic when a platform needs it; playback, input integration

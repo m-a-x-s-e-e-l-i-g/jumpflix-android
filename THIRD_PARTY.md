@@ -59,5 +59,9 @@ assets, font notices and GPL text through its resource source set.
 Windows native title-bar colours use [JNA](https://github.com/java-native-access/jna)
 5.19.1 under its Apache-2.0 license option. Its license and notices remain in the
 bundled dependency JAR. Windows DWM itself is supplied by the operating system.
+Desktop playback uses [SwingWebView](https://github.com/webliteca/swingwebview)
+1.14.0 under the MIT license. SwingWebView and its upstream webview MIT notices
+are bundled in the desktop app's license assets. [hls.js](https://github.com/video-dev/hls.js)
+1.7.4 uses Apache-2.0, with the license in its dependency JAR.
 JUMPFLIX branding is supplied by the project owner. Catalog/provider artwork is
 remote third-party content, not relicensed as application source.
